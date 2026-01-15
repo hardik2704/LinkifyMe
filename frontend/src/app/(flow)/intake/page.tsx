@@ -13,17 +13,53 @@ import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 import { Select } from "@/components/ui/Select";
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
 export default function IntakePage() {
     const router = useRouter();
     const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
-    const handleSubmit = (e: React.FormEvent) => {
+    // Form state
+    const [linkedinUrl, setLinkedinUrl] = useState("");
+    const [email, setEmail] = useState("");
+    const [phone, setPhone] = useState("");
+    const [targetGroup, setTargetGroup] = useState("");
+
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
-        // Simulate API call
-        setTimeout(() => {
+        setError(null);
+
+        try {
+            const response = await fetch(`${API_BASE}/api/intake`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    linkedin_url: linkedinUrl,
+                    email: email,
+                    phone: phone || undefined,
+                    target_group: targetGroup,
+                }),
+            });
+
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.detail || "Failed to start analysis");
+            }
+
+            const data = await response.json();
+
+            // Store the unique_id and redirect to loader
+            sessionStorage.setItem("linkify_unique_id", data.unique_id);
             router.push("/loader");
-        }, 1000);
+
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Something went wrong");
+            setIsLoading(false);
+        }
     };
 
     return (
@@ -79,6 +115,12 @@ export default function IntakePage() {
                 >
                     <GlassPanel className="p-8">
                         <form onSubmit={handleSubmit} className="space-y-6">
+                            {error && (
+                                <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">
+                                    {error}
+                                </div>
+                            )}
+
                             <div>
                                 <Label htmlFor="linkedin-url" required>
                                     LinkedIn Profile URL
@@ -86,6 +128,8 @@ export default function IntakePage() {
                                 <Input
                                     id="linkedin-url"
                                     placeholder="https://www.linkedin.com/in/your-username/"
+                                    value={linkedinUrl}
+                                    onChange={(e) => setLinkedinUrl(e.target.value)}
                                     required
                                 />
                                 <p className="mt-1.5 text-xs text-slate-500">
@@ -101,6 +145,8 @@ export default function IntakePage() {
                                     id="email"
                                     type="email"
                                     placeholder="your@email.com"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
                                     required
                                 />
                                 <p className="mt-1.5 text-xs text-slate-500">
@@ -114,6 +160,8 @@ export default function IntakePage() {
                                     id="phone"
                                     type="tel"
                                     placeholder="+91 98765 43210"
+                                    value={phone}
+                                    onChange={(e) => setPhone(e.target.value)}
                                 />
                             </div>
 
@@ -129,7 +177,8 @@ export default function IntakePage() {
                                         { value: "clients", label: "Clients & Brands" },
                                         { value: "vcs", label: "Investors & VCs" },
                                     ]}
-                                    defaultValue=""
+                                    value={targetGroup}
+                                    onChange={(e) => setTargetGroup(e.target.value)}
                                     required
                                 />
                             </div>
