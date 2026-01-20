@@ -1,0 +1,279 @@
+# Base Rules - Apply to all personas
+# Comprehensive deterministic scoring adjustments based on recruiter preferences
+# Sources: Recruiter commentary on LinkedIn profile pitfalls, optimization best practices
+
+version: 2
+
+rules:
+  # ============================================================================
+  # HEADLINE RULES
+  # ============================================================================
+  
+  - id: "headline_seeking"
+    section: "headline"
+    when:
+      any_regex:
+        - '(?i)\bopen to work\b'
+        - '(?i)\bseeking (?:new )?opportunities\b'
+        - '(?i)\blooking for (?:new )?opportunity\b'
+    effect:
+      delta: -0.5
+    reason: "Headline focuses on job seeking rather than professional value proposition"
+
+  - id: "headline_buzzword"
+    section: "headline"
+    when:
+      any_regex:
+        - '(?i)\bguru\b'
+        - '(?i)\bninja\b'
+        - '(?i)\brockstar\b'
+        - '(?i)\bwizard\b'
+    effect:
+      delta: -0.5
+    reason: "Headline uses gimmicky buzzwords (e.g., 'guru', 'ninja')"
+
+  - id: "headline_achievement"
+    section: "headline"
+    when:
+      any_regex:
+        - '\d+%'
+        - '\$\d+'
+        - '\b\d+x\b'
+    effect:
+      delta: +0.3
+    reason: "Headline includes a quantified achievement or metric"
+
+  - id: "headline_emoji"
+    section: "headline"
+    when:
+      any_regex:
+        - '🚀'
+        - '✨'
+        - '⭐'
+        - '✅'
+        - '✔'
+    effect:
+      delta: -0.2
+    reason: "Use of emoji/symbols in headline may appear unprofessional in a corporate context"
+
+  - id: "headline_clear_role"
+    section: "headline"
+    when:
+      any_regex:
+        - '(?i)\b(Engineer|Developer|Manager|Analyst|Designer|Architect|Director|Lead)\b'
+    effect:
+      delta: +0.2
+    reason: "Headline contains clear professional role"
+
+  # ============================================================================
+  # ABOUT/SUMMARY RULES
+  # ============================================================================
+
+  - id: "about_buzzwords"
+    section: "about"
+    when:
+      any_regex:
+        - '(?i)\bpassionate\b'
+        - '(?i)\bmotivated\b'
+        - '(?i)\bcreative\b'
+        - '(?i)\bstrategic\b'
+        - '(?i)\bskilled\b'
+        - '(?i)\bguru\b'
+        - '(?i)\bninja\b'
+        - '(?i)\brockstar\b'
+        - '(?i)\bdriven\b'
+        - '(?i)\binnovative\b'
+        - '(?i)\bextensive experience\b'
+        - '(?i)\bdynamic\b'
+    effect:
+      delta: -0.3
+    reason: "About section uses clichéd buzzwords without concrete examples"
+
+  - id: "about_quantified"
+    section: "about"
+    when:
+      any_regex:
+        - '\d+%'
+        - '\$\d+'
+        - '\b\d+\s*(users|customers|clients|projects|years)\b'
+    effect:
+      delta: +0.5
+    reason: "About section highlights achievements with numbers or metrics"
+
+  - id: "about_keywords"
+    section: "about"
+    when:
+      any_regex:
+        - '(?i)\b(Agile|Scrum|Cloud|Python|Project Management|Marketing|Finance|Analytics|Strategy|AI|Machine Learning)\b'
+    effect:
+      delta: +0.2
+    reason: "About section contains relevant industry keywords"
+
+  - id: "about_call_to_action"
+    section: "about"
+    when:
+      any_regex:
+        - '(?i)\breach out\b'
+        - '(?i)\bcontact me\b'
+        - '(?i)\blet.s connect\b'
+        - '(?i)\bDM me\b'
+    effect:
+      delta: +0.3
+    reason: "About section includes clear call to action"
+
+  # ============================================================================
+  # EXPERIENCE RULES
+  # ============================================================================
+
+  - id: "exp_responsibilities"
+    section: "experience"
+    when:
+      any_regex:
+        - '(?i)\bresponsible for\b'
+        - '(?i)\bduties included\b'
+        - '(?i)\bresponsibilities\b'
+    effect:
+      delta: -0.5
+    reason: "Experience descriptions sound like job duties rather than accomplishments"
+
+  - id: "exp_quantified"
+    section: "experience"
+    when:
+      any_regex:
+        - '\d+%'
+        - '\$\d+'
+        - '\b\d+x\b'
+        - '(?i)\bincreased.*\d+'
+        - '(?i)\breduced.*\d+'
+        - '(?i)\bgrew.*\d+'
+    effect:
+      delta: +0.5
+    reason: "Experience section includes quantifiable achievements (metrics, results)"
+
+  - id: "exp_leadership"
+    section: "experience"
+    when:
+      any_regex:
+        - '(?i)\bManager\b'
+        - '(?i)\bDirector\b'
+        - '(?i)\bVice President\b'
+        - '(?i)\bHead of\b'
+        - '(?i)\bLead\b'
+        - '(?i)\bled\b'
+        - '(?i)\bChief\b'
+        - '(?i)\bteam of \d+'
+    effect:
+      delta: +0.3
+    reason: "Experience includes leadership roles or management positions"
+
+  - id: "exp_keywords"
+    section: "experience"
+    when:
+      any_regex:
+        - '(?i)\b(Agile|Scrum|Cloud|Data|Analytics|Sales|Marketing|Finance|Project Management|AI|Strategy)\b'
+    effect:
+      delta: +0.2
+    reason: "Experience section contains relevant industry terms or tools"
+
+  - id: "exp_action_verbs"
+    section: "experience"
+    when:
+      any_regex:
+        - '(?i)\b(Led|Built|Designed|Developed|Created|Implemented|Managed|Launched|Optimized|Automated|Scaled|Delivered)\b'
+    effect:
+      delta: +0.2
+    reason: "Experience uses strong action verbs"
+
+  # ============================================================================
+  # EDUCATION RULES
+  # ============================================================================
+
+  - id: "edu_high_gpa"
+    section: "education"
+    when:
+      any_regex:
+        - '(?i)\bGPA\b.{0,10}\b(3\.[5-9]|4\.0)\b'
+        - '(?i)\bcum laude\b'
+        - '(?i)\bwith honors\b'
+        - '(?i)\bmagna cum laude\b'
+        - '(?i)\bsumma cum laude\b'
+    effect:
+      delta: +0.3
+    reason: "High GPA or academic honors (strong academic performance)"
+
+  - id: "edu_advanced_degree"
+    section: "education"
+    when:
+      any_regex:
+        - '(?i)\bMaster\b'
+        - '(?i)\bMBA\b'
+        - '(?i)\bPhD\b'
+        - '(?i)\bPh\.D\b'
+        - '(?i)\bDoctorate\b'
+    effect:
+      delta: +0.4
+    reason: "Advanced degree (Masters, MBA, PhD)"
+
+  # ============================================================================
+  # SKILLS RULES
+  # ============================================================================
+
+  - id: "skills_relevant_keywords"
+    section: "skills"
+    when:
+      any_regex:
+        - '(?i)\b(Python|Java|SQL|Excel|Agile|Scrum|Machine Learning|Cloud|AWS|Azure|Digital Marketing|Salesforce|Data Analysis|React|Node|Kubernetes|Docker)\b'
+    effect:
+      delta: +0.3
+    reason: "Skills section includes in-demand keywords for the target industry"
+
+  - id: "skills_generic"
+    section: "skills"
+    when:
+      any_regex:
+        - '(?i)\bMicrosoft Office\b'
+        - '(?i)\bInternet\b'
+        - '(?i)\bEmail\b'
+        - '(?i)\bTyping\b'
+    effect:
+      delta: -0.2
+    reason: "Skills section contains basic skills that are assumed (e.g., 'Microsoft Office')"
+
+  - id: "skills_system_design"
+    section: "skills"
+    when:
+      any_regex:
+        - '(?i)\bsystem design\b'
+        - '(?i)\bdistributed systems\b'
+        - '(?i)\bmicroservices\b'
+    effect:
+      delta: +0.3
+    reason: "Skills include system design expertise"
+
+  # ============================================================================
+  # CERTIFICATIONS RULES
+  # ============================================================================
+
+  - id: "certs_cloud"
+    section: "licenses_certs"
+    when:
+      any_regex:
+        - '(?i)\bAWS\b'
+        - '(?i)\bAzure\b'
+        - '(?i)\bGoogle Cloud\b'
+        - '(?i)\bCertified\b'
+    effect:
+      delta: +0.3
+    reason: "Has cloud or professional certifications"
+
+  - id: "certs_pmp"
+    section: "licenses_certs"
+    when:
+      any_regex:
+        - '(?i)\bPMP\b'
+        - '(?i)\bProject Management Professional\b'
+        - '(?i)\bCPA\b'
+        - '(?i)\bCFA\b'
+    effect:
+      delta: +0.4
+    reason: "Has professional industry certification (PMP, CPA, CFA)"

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, BrainCircuit, FileText, Lightbulb, AlertCircle } from "lucide-react";
@@ -13,6 +13,11 @@ import { IconTile } from "@/components/ui/IconTile";
 import { Button } from "@/components/ui/Button";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+// Terminal states - stop polling when reached
+const TERMINAL_STATES = ["complete", "completed", "failed", "invalid_url", "not_found"];
+const POLL_INTERVAL_MS = 5000; // 5 seconds instead of 2
+const MAX_BACKOFF_MS = 30000; // 30 seconds max
 
 const STEPS = [
     { label: "Scraping", icon: <Search className="h-4 w-4" /> },
@@ -34,93 +39,128 @@ export default function LoaderPage() {
     const [tipIndex, setTipIndex] = useState(0);
     const [error, setError] = useState<string | null>(null);
     const [statusMessage, setStatusMessage] = useState("Initializing...");
+    const [isTerminal, setIsTerminal] = useState(false);
+
+    // Backoff state
+    const backoffRef = useRef(0);
+    const pollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     const pollStatus = useCallback(async () => {
         const uniqueId = sessionStorage.getItem("linkify_unique_id");
 
         if (!uniqueId) {
             setError("No analysis ID found. Please start a new analysis.");
+            setIsTerminal(true);
             return null;
         }
 
         try {
             const response = await fetch(`${API_BASE}/api/status/${uniqueId}`);
 
+            // Handle rate limiting with backoff
+            if (response.status === 429 || response.status === 503) {
+                backoffRef.current = Math.min(backoffRef.current * 2 || POLL_INTERVAL_MS, MAX_BACKOFF_MS);
+                console.log(`Rate limited, backing off to ${backoffRef.current}ms`);
+                return null;
+            }
+
             if (!response.ok) {
                 throw new Error("Failed to fetch status");
             }
+
+            // Reset backoff on success
+            backoffRef.current = 0;
 
             const data = await response.json();
             return data;
         } catch (err) {
             console.error("Polling error:", err);
+            // Exponential backoff on error
+            backoffRef.current = Math.min(backoffRef.current * 2 || POLL_INTERVAL_MS, MAX_BACKOFF_MS);
             return null;
         }
     }, []);
 
     useEffect(() => {
-        let pollInterval: NodeJS.Timeout;
+        // Handle visibility change - pause polling when tab hidden
+        const handleVisibilityChange = () => {
+            if (document.hidden && pollTimeoutRef.current) {
+                clearTimeout(pollTimeoutRef.current);
+                pollTimeoutRef.current = null;
+            }
+        };
+
+        document.addEventListener("visibilitychange", handleVisibilityChange);
 
         const poll = async () => {
+            // Don't poll if terminal state reached
+            if (isTerminal) return;
+
             const status = await pollStatus();
 
-            if (!status) return;
-
-            // Update progress
-            setProgress(status.progress_percent);
-
-            // Update current step based on status
-            if (status.current_step === "complete" || status.scrape_status === "completed") {
-                setCurrentStep(3);
-                setStatusMessage("Analysis Complete!");
-
-                // Redirect to report
-                if (status.customer_id) {
-                    sessionStorage.setItem("linkify_customer_id", status.customer_id);
-                    setTimeout(() => router.push("/report"), 1000);
+            if (status) {
+                // Check for terminal states
+                const currentState = status.current_step || status.scrape_status;
+                if (TERMINAL_STATES.includes(currentState)) {
+                    setIsTerminal(true);
                 }
-                return;
-            }
 
-            if (status.current_step === "scoring" || status.current_step === "scoring") {
-                setCurrentStep(2);
-                setStatusMessage("Running AI Analysis...");
-            } else if (status.current_step === "scraping" || status.scrape_status === "scraping") {
-                setCurrentStep(1);
-                setStatusMessage("Scraping Your LinkedIn...");
-            } else if (status.current_step === "payment" || status.payment_status === "succeeded") {
-                setCurrentStep(0);
-                setStatusMessage("Starting Scrape...");
-            } else {
-                setCurrentStep(0);
-                setStatusMessage("Preparing Analysis...");
-            }
+                // Update progress
+                setProgress(status.progress_percent);
 
-            // Check for errors
-            if (status.error_message) {
-                // Don't show Google Sheets errors to user, just use demo mode
-                if (status.error_message.includes("Service account") ||
-                    status.error_message.includes("Google")) {
-                    // Demo mode - simulate progress
-                    setProgress((prev) => Math.min(prev + 10, 95));
+                // Handle failed state
+                if (status.current_step === "failed" || status.scrape_status === "failed") {
+                    setError(status.error_message || "Scrape failed");
+                    setIsTerminal(true);
+                    return;
+                }
+
+                // Handle completion
+                if (status.current_step === "complete" || status.scrape_status === "completed") {
+                    setCurrentStep(3);
+                    setStatusMessage("Analysis Complete!");
+                    setIsTerminal(true);
+
+                    if (status.customer_id) {
+                        sessionStorage.setItem("linkify_customer_id", status.customer_id);
+                        setTimeout(() => router.push("/report"), 1000);
+                    }
+                    return;
+                }
+
+                // Update step based on status
+                if (status.current_step === "scoring") {
+                    setCurrentStep(2);
+                    setStatusMessage("Running AI Analysis...");
+                } else if (status.current_step === "scraping" || status.scrape_status === "scraping") {
+                    setCurrentStep(1);
+                    setStatusMessage("Scraping Your LinkedIn...");
+                } else if (status.current_step === "payment" || status.payment_status === "succeeded") {
+                    setCurrentStep(0);
+                    setStatusMessage("Starting Scrape...");
                 } else {
-                    setError(status.error_message);
+                    setCurrentStep(0);
+                    setStatusMessage("Preparing Analysis...");
                 }
+            }
+
+            // Schedule next poll with backoff
+            if (!isTerminal) {
+                const nextPoll = backoffRef.current || POLL_INTERVAL_MS;
+                pollTimeoutRef.current = setTimeout(poll, nextPoll);
             }
         };
 
         // Initial poll
         poll();
 
-        // Poll every 2 seconds
-        pollInterval = setInterval(poll, 2000);
-
         return () => {
-            if (pollInterval) {
-                clearInterval(pollInterval);
+            document.removeEventListener("visibilitychange", handleVisibilityChange);
+            if (pollTimeoutRef.current) {
+                clearTimeout(pollTimeoutRef.current);
             }
         };
-    }, [pollStatus, router]);
+    }, [pollStatus, router, isTerminal]);
 
     // Rotate tips
     useEffect(() => {
@@ -130,30 +170,29 @@ export default function LoaderPage() {
         return () => clearInterval(tipInterval);
     }, []);
 
-    // Demo mode: simulate progress if backend is not fully configured
+    // Demo mode disabled - using real backend polling
+    // To enable demo mode for testing without backend, uncomment below
+    /*
     useEffect(() => {
-        if (!error) {
+        if (!error && !isTerminal) {
             const demoInterval = setInterval(() => {
                 setProgress((prev) => {
                     if (prev >= 100) {
                         clearInterval(demoInterval);
-                        // In demo mode, redirect to report with demo data
                         setTimeout(() => router.push("/report"), 500);
                         return 100;
                     }
-                    // Calculate step
                     if (prev < 30) setCurrentStep(0);
                     else if (prev < 70) setCurrentStep(1);
                     else if (prev < 95) setCurrentStep(2);
                     else setCurrentStep(3);
-
                     return prev + 2;
                 });
             }, 500);
-
             return () => clearInterval(demoInterval);
         }
-    }, [error, router]);
+    }, [error, router, isTerminal]);
+    */
 
     const steps: Step[] = STEPS.map((s, idx) => ({
         label: s.label,

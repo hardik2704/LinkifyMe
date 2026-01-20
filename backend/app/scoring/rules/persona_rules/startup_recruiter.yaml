@@ -1,0 +1,36 @@
+# Startup Recruiter - Persona-specific rules
+
+version: 1
+
+rules:
+  - id: "sr_founder_bonus"
+    section: "experience"
+    when:
+      any_regex: ["\\b(founder|co-founder|founding)\\b"]
+    effect:
+      delta: 0.6
+    reason: "Founder/startup experience"
+  
+  - id: "sr_zero_to_one"
+    section: "experience"
+    when:
+      any_regex: ["built from scratch", "0 to 1", "zero to one", "greenfield"]
+    effect:
+      delta: 0.5
+    reason: "Zero-to-one builder"
+  
+  - id: "sr_fullstack"
+    section: "skills"
+    when:
+      any_regex: ["full.?stack", "frontend.*backend", "end.to.end"]
+    effect:
+      delta: 0.4
+    reason: "Full-stack capabilities"
+  
+  - id: "sr_scrappy"
+    section: "about"
+    when:
+      any_regex: ["bootstrapped", "lean", "MVP", "iterate", "ship fast"]
+    effect:
+      delta: 0.3
+    reason: "Startup mindset"

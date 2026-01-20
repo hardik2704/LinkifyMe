@@ -2,6 +2,7 @@
 Scoring Node
 
 Runs AI-powered scoring on the scraped profile.
+Uses prompts aligned with app/scoring/ rubric.
 """
 
 from datetime import datetime
@@ -15,8 +16,8 @@ def ai_scoring(state: LinkifyState) -> LinkifyState:
     """
     Run AI scoring on the scraped profile.
     
-    Input: scraped_profile, target_group
-    Output: scores, executive_summary, section_scores, ai_rewrites
+    Input: scraped_profile, target_group, linkedin_url
+    Output: scores with section scores and reasonings
     """
     sheets = get_sheets_service()
     scoring_service = get_scoring_service()
@@ -40,15 +41,49 @@ def ai_scoring(state: LinkifyState) -> LinkifyState:
         }
     
     target_group = state.get("target_group", "recruiters")
+    linkedin_url = state.get("linkedin_url", "")
     
     try:
-        # Run the scoring
-        scores = scoring_service.score_profile(scraped_profile, target_group)
+        # Run the scoring with linkedin_url
+        scores = scoring_service.score_profile(
+            scraped_profile, 
+            target_group,
+            linkedin_url=linkedin_url
+        )
         
-        overall_score = scores.get("overall_score", 0)
-        executive_summary = scores.get("executive_summary", "")
-        sections = scores.get("sections", {})
-        top_priorities = scores.get("top_priorities", [])
+        # Extract cumulative score from new schema
+        overall_score = scores.get("Cumulative Sum of Score(100)", 0)
+        executive_summary = scores.get("Cumulative Sum Reasoning", "")
+        
+        # Build section scores dict from new schema
+        section_scores = {
+            "headline": scores.get("Headline Score", 0),
+            "connections": scores.get("Connection Count Score", 0),
+            "followers": scores.get("Follower Count Score", 0),
+            "about": scores.get("About Score", 0),
+            "profile_pic": scores.get("Profile Pic Score", 0),
+            "cover_picture": scores.get("Cover_picture Score", 0),
+            "experience": scores.get("Experience Score", 0),
+            "education": scores.get("Education Score", 0),
+            "skills": scores.get("Skills Score", 0),
+            "licenses_certs": scores.get("Licenses & Certifications Score", 0),
+            "verified": scores.get("is Verified Score", 0),
+            "premium": scores.get("is Premium Score", 0),
+        }
+        
+        # Build section analyses/reasoning dict from new schema
+        section_analyses = {
+            "headline": scores.get("Headline Reasoning", ""),
+            "connections": scores.get("Connection Reasoning", ""),
+            "followers": scores.get("Follower Reasoning", ""),
+            "about": scores.get("About Reasoning", ""),
+            "profile_pic": scores.get("Profile Pic Reasoning", ""),
+            "cover_picture": scores.get("Cover_picture Reasoning", ""),
+            "experience": scores.get("Experience Reasoning", ""),
+            "education": scores.get("Education Reasoning", ""),
+            "skills": scores.get("Skills Reasoning", ""),
+            "licenses_certs": scores.get("Licenses & Certifications Reasoning", ""),
+        }
         
     except Exception as e:
         error_message = f"AI scoring failed: {str(e)}"
@@ -87,11 +122,10 @@ def ai_scoring(state: LinkifyState) -> LinkifyState:
     
     return {
         **state,
-        "scores": scores,
+        "scores": scores,  # Full AI response with all scores and reasonings
         "executive_summary": executive_summary,
-        "section_scores": {k: v.get("score", 0) for k, v in sections.items()},
-        "section_analyses": {k: v.get("analysis", "") for k, v in sections.items()},
-        "ai_rewrites": {k: v.get("ai_rewrite", "") for k, v in sections.items() if v.get("ai_rewrite")},
+        "section_scores": section_scores,
+        "section_analyses": section_analyses,
         "ai_scoring_status": "completed",
         "activity_log": activity_log,
     }

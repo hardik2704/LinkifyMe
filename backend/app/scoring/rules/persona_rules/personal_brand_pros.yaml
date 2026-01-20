@@ -1,0 +1,36 @@
+# Personal Brand Pros - Persona-specific rules
+
+version: 1
+
+rules:
+  - id: "pb_thought_leader"
+    section: "headline"
+    when:
+      any_regex: ["speaker", "author", "podcast", "TEDx", "keynote"]
+    effect:
+      delta: 0.6
+    reason: "Thought leadership signals"
+  
+  - id: "pb_content_creator"
+    section: "about"
+    when:
+      any_regex: ["newsletter", "YouTube", "blog", "content", "audience"]
+    effect:
+      delta: 0.5
+    reason: "Content creation evidence"
+  
+  - id: "pb_social_proof"
+    section: "about"
+    when:
+      any_regex: ["featured in", "as seen on", "published in", "interviewed"]
+    effect:
+      delta: 0.5
+    reason: "Social proof/media mentions"
+  
+  - id: "pb_engagement"
+    section: "headline"
+    when:
+      any_regex: ["helping.*\\d+", "worked with.*\\d+", "trained.*\\d+"]
+    effect:
+      delta: 0.4
+    reason: "Quantified audience reach"

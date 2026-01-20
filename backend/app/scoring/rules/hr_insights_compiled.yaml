@@ -1,0 +1,47 @@
+# HR Insights Compiled - Auto-generated
+# DO NOT EDIT MANUALLY
+
+version: 1
+compiled_from:
+- 2026-01-20__amazon_sde_hiring_manager.md
+rules:
+- id: hr_addon_1033
+  section: experience
+  when:
+    any_regex:
+    - distributed\ systems
+  effect:
+    delta: 0.3
+  reason: 'HR insight: experience contains ''distributed systems'''
+- id: hr_addon_8165
+  section: experience
+  when:
+    any_regex:
+    - scaled\ to
+  effect:
+    delta: 0.3
+  reason: 'HR insight: experience contains ''scaled to'''
+- id: hr_addon_4740
+  section: skills
+  when:
+    any_regex:
+    - system\ design
+  effect:
+    delta: 0.2
+  reason: 'HR insight: skills include ''system design'''
+- id: hr_redflag_6114
+  section: about
+  when:
+    any_regex:
+    - \babout\b
+  effect:
+    delta: -0.3
+  reason: 'HR insight: too many buzzwords in about'
+- id: hr_redflag_2761
+  section: experience
+  when:
+    any_regex:
+    - \bmetrics\b
+  effect:
+    delta: -0.2
+  reason: 'HR insight: no metrics in experience'

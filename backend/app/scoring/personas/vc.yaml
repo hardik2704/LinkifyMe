@@ -1,0 +1,31 @@
+# VC Persona
+# Optimized for founders/executives being evaluated by investors
+# Emphasis on leadership, credibility, traction signals, and network
+
+name: vc
+description: |
+  For founders and executives being evaluated by venture capitalists. VCs look 
+  for leadership experience, credibility signals (verified, premium), strong 
+  networks, and evidence of building successful ventures.
+
+weights:
+  headline: 0.08
+  connections: 0.06
+  followers: 0.05
+  about: 0.10
+  profile_pic: 0.03
+  cover_picture: 0.02
+  experience: 0.30
+  education: 0.08
+  skills: 0.10
+  licenses_certs: 0.05
+  verified: 0.08
+  premium: 0.05
+  # Total: 1.00
+
+priorities:
+  - "Leadership and founder experience"
+  - "Impact and scale metrics in experience"
+  - "Strong professional network"
+  - "Investor-relevant credibility signals"
+  - "Industry thought leadership indicators"

@@ -1,0 +1,31 @@
+# Personal Brand Pros Persona
+# Optimized for thought leaders, influencers, consultants, coaches
+# Heavy emphasis on About, Headline, Followers, and content signals
+
+name: personal_brand_pros
+description: |
+  For professionals building their personal brand - consultants, coaches, 
+  speakers, authors, and content creators. These profiles are evaluated on 
+  their ability to attract audience and convey expertise clearly.
+
+weights:
+  headline: 0.15
+  connections: 0.08
+  followers: 0.12
+  about: 0.15
+  profile_pic: 0.05
+  cover_picture: 0.03
+  experience: 0.15
+  education: 0.05
+  skills: 0.10
+  licenses_certs: 0.05
+  verified: 0.04
+  premium: 0.03
+  # Total: 1.00
+
+priorities:
+  - "Compelling, clear headline"
+  - "Strong follower base"
+  - "Engaging About section with call-to-action"
+  - "Professional profile picture"
+  - "Evidence of expertise and thought leadership"

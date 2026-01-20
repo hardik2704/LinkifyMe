@@ -1,0 +1,37 @@
+# Big Company Recruiter - Persona-specific rules
+# Additional rules that apply only when scoring for this persona
+
+version: 1
+
+rules:
+  - id: "bcr_faang_experience"
+    section: "experience"
+    when:
+      any_regex: ["\\b(Google|Amazon|Microsoft|Meta|Apple|Netflix|Facebook)\\b"]
+    effect:
+      delta: 0.5
+    reason: "FAANG/Big Tech experience"
+  
+  - id: "bcr_system_design"
+    section: "skills"
+    when:
+      any_regex: ["system design", "distributed systems", "architecture"]
+    effect:
+      delta: 0.4
+    reason: "System design expertise"
+  
+  - id: "bcr_leetcode_signals"
+    section: "skills"
+    when:
+      any_regex: ["algorithms", "data structures", "competitive programming"]
+    effect:
+      delta: 0.3
+    reason: "Strong CS fundamentals"
+  
+  - id: "bcr_degree_bonus"
+    section: "education"
+    when:
+      any_regex: ["\\b(MS|PhD|Masters|Ph\\.D)\\b"]
+    effect:
+      delta: 0.4
+    reason: "Advanced degree"

@@ -23,6 +23,7 @@ SHEET_PROFILE_INFO = "Profile Information"
 SHEET_PROFILE_SCORING = "Profile Scoring"
 SHEET_PAYMENT_CONFIRMATION = "Payment Confirmation"
 SHEET_ACTIVITY_LOG = "Activity Log"
+SHEET_FEEDBACK = "Feedback"
 
 # Scopes for Google Sheets API
 SCOPES = [
@@ -240,34 +241,65 @@ class GoogleSheetsService:
         return len(sheet.get_all_values())
     
     def update_profile_scoring(self, row: int, updates: dict[str, Any]) -> None:
-        """Update specific columns in a Profile Scoring row."""
+        """Update specific columns in a Profile Scoring row.
+        
+        Column structure matches user's required format:
+        Customer ID | LinkedIn Profile | First Name | Headline Score | Connection Score | 
+        Follower Score | About Score | Profile Pic Score | Cover_picture Score | 
+        Experience Score | Education Score | Skills Score | Licenses & Certifications Score | 
+        Is Verified Score | Is Premium Score | Final Score | Headline Reasoning | 
+        Connection Reasoning | Follower Reasoning | About Reasoning | Profile Pic Reasoning | 
+        Cover_picture Reasoning | Experience Reasoning | Education Reasoning | Skills Reasoning | 
+        Licenses & Certifications Reasoning | Final Score Reasoning | TimeStamp | Completion Status
+        """
+        import logging
+        logger = logging.getLogger("linkify.sheets")
+        
         sheet = self._get_sheet(SHEET_PROFILE_SCORING)
         
+        # New column mapping matching user's required format (1-indexed)
         column_map = {
             "customer_id": 1,
-            "overall_score": 2,
-            "executive_summary": 3,
+            "linkedin_url": 2,
+            "first_name": 3,
             "headline_score": 4,
-            "headline_analysis": 5,
-            "about_score": 6,
-            "about_analysis": 7,
-            "experience_score": 8,
-            "experience_analysis": 9,
-            "connections_score": 10,
-            "connections_analysis": 11,
-            "profile_photo_score": 12,
-            "profile_photo_analysis": 13,
-            "ai_rewrites_json": 14,
-            "scoring_status": 15,
-            "scored_at": 16,
+            "connection_score": 5,
+            "follower_score": 6,
+            "about_score": 7,
+            "profile_pic_score": 8,
+            "cover_picture_score": 9,
+            "experience_score": 10,
+            "education_score": 11,
+            "skills_score": 12,
+            "licenses_certs_score": 13,
+            "verified_score": 14,
+            "premium_score": 15,
+            "final_score": 16,
+            "headline_reasoning": 17,
+            "connection_reasoning": 18,
+            "follower_reasoning": 19,
+            "about_reasoning": 20,
+            "profile_pic_reasoning": 21,
+            "cover_picture_reasoning": 22,
+            "experience_reasoning": 23,
+            "education_reasoning": 24,
+            "skills_reasoning": 25,
+            "licenses_certs_reasoning": 26,
+            "final_score_reasoning": 27,
+            "timestamp": 28,
+            "completion_status": 29,
         }
         
-        for key, value in updates.items():
-            if key in column_map:
-                col = column_map[key]
-                if isinstance(value, (dict, list)):
-                    value = json.dumps(value)
-                sheet.update_cell(row, col, value)
+        try:
+            for key, value in updates.items():
+                if key in column_map:
+                    col = column_map[key]
+                    if isinstance(value, (dict, list)):
+                        value = json.dumps(value)
+                    sheet.update_cell(row, col, value)
+        except Exception as e:
+            # Log the error but don't fail - quota limits shouldn't break the workflow
+            logger.warning(f"Failed to update profile scoring (quota?): {e}")
     
     def get_profile_scoring(self, row: int) -> dict[str, Any]:
         """Get a Profile Scoring row by row number."""
@@ -376,19 +408,29 @@ class GoogleSheetsService:
         status: str,
         message: str,
     ) -> None:
-        """Append an entry to the Activity Log."""
-        sheet = self._get_sheet(SHEET_ACTIVITY_LOG)
+        """Append an entry to the Activity Log.
         
-        row_data = [
-            datetime.utcnow().isoformat(),
-            unique_id,
-            customer_id or "",
-            event_type,
-            status,
-            message,
-        ]
+        Catches quota errors gracefully to not fail the main workflow.
+        """
+        import logging
+        logger = logging.getLogger("linkify.sheets")
         
-        sheet.append_row(row_data, value_input_option="RAW")
+        try:
+            sheet = self._get_sheet(SHEET_ACTIVITY_LOG)
+            
+            row_data = [
+                datetime.utcnow().isoformat(),
+                unique_id,
+                customer_id or "",
+                event_type,
+                status,
+                message,
+            ]
+            
+            sheet.append_row(row_data, value_input_option="RAW")
+        except Exception as e:
+            # Log the error but don't fail - quota limits shouldn't break the workflow
+            logger.warning(f"Failed to write activity log (quota?): {e}")
     
     def get_recent_activity_logs(self, limit: int = 100) -> list[dict[str, Any]]:
         """Get the most recent activity log entries."""
@@ -414,6 +456,57 @@ class GoogleSheetsService:
                 })
         
         return logs
+
+    # =========================================================================
+    # Feedback Operations
+    # =========================================================================
+    
+    def _ensure_sheet_exists(self, sheet_name: str, headers: list[str]) -> gspread.Worksheet:
+        """Ensure a sheet exists, create it if not."""
+        spreadsheet = self._get_spreadsheet()
+        try:
+            return spreadsheet.worksheet(sheet_name)
+        except gspread.WorksheetNotFound:
+            # Create the sheet with headers
+            sheet = spreadsheet.add_worksheet(title=sheet_name, rows=1000, cols=len(headers))
+            sheet.append_row(headers, value_input_option="RAW")
+            return sheet
+    
+    def create_feedback(
+        self,
+        email: str,
+        customer_id: str,
+        would_refer: int,
+        was_helpful: int,
+        suggestions: Optional[str] = None,
+    ) -> int:
+        """
+        Store user feedback in the Feedback sheet.
+        
+        Columns: Timestamp | Email | Customer ID | Would Refer (1-5) | Was Helpful (1-5) | Suggestions
+        """
+        headers = [
+            "Timestamp",
+            "Email",
+            "Customer ID",
+            "Would Refer (1-5)",
+            "Was Helpful (1-5)",
+            "Suggestions",
+        ]
+        
+        sheet = self._ensure_sheet_exists(SHEET_FEEDBACK, headers)
+        
+        row_data = [
+            datetime.utcnow().isoformat(),
+            email,
+            customer_id,
+            would_refer,
+            was_helpful,
+            suggestions or "",
+        ]
+        
+        sheet.append_row(row_data, value_input_option="RAW")
+        return len(sheet.get_all_values())
 
 
 # Singleton instance

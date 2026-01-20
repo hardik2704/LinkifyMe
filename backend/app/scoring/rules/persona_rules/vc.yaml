@@ -1,0 +1,36 @@
+# VC - Persona-specific rules
+
+version: 1
+
+rules:
+  - id: "vc_founder_heavy"
+    section: "experience"
+    when:
+      any_regex: ["\\bfounder\\b", "\\bCEO\\b", "\\bCTO\\b"]
+    effect:
+      delta: 0.8
+    reason: "Executive/Founder role"
+  
+  - id: "vc_exit_signals"
+    section: "experience"
+    when:
+      any_regex: ["acquired", "IPO", "exit", "raised.*\\$\\d+M"]
+    effect:
+      delta: 0.7
+    reason: "Exit/funding signals"
+  
+  - id: "vc_board_experience"
+    section: "experience"
+    when:
+      any_regex: ["board member", "advisor", "board of directors"]
+    effect:
+      delta: 0.5
+    reason: "Board/advisory experience"
+  
+  - id: "vc_investor_network"
+    section: "about"
+    when:
+      any_regex: ["investor", "angel", "portfolio", "venture"]
+    effect:
+      delta: 0.4
+    reason: "Investor network signals"

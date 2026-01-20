@@ -37,10 +37,13 @@ class Settings(BaseSettings):
     
     # === Apify ===
     apify_api_token: str = Field(default="")
-    apify_actor_id: str = Field(default="curious_coder/linkedin-profile-scraper")
+    apify_actor_id: str = Field(default="supreme_coder~linkedin-profile-scraper")
     
     # === OpenAI ===
     openai_api_key: str = Field(default="")
+    
+    # === PDF Generation ===
+    pdfshift_api_key: str = Field(default="")
     
     @property
     def google_credentials(self) -> dict | None:

@@ -1,0 +1,31 @@
+# Startup Recruiter Persona
+# Optimized for candidates targeting Series A-C startups
+# Emphasis on hands-on experience, breadth, and speed signals
+
+name: startup_recruiter
+description: |
+  For candidates targeting early-stage to growth-stage startups. These recruiters 
+  value breadth over depth, hands-on builders, and candidates who can wear 
+  multiple hats. Speed and adaptability matter more than pedigree.
+
+weights:
+  headline: 0.10
+  connections: 0.04
+  followers: 0.03
+  about: 0.12
+  profile_pic: 0.02
+  cover_picture: 0.02
+  experience: 0.30
+  education: 0.10
+  skills: 0.18
+  licenses_certs: 0.06
+  verified: 0.02
+  premium: 0.01
+  # Total: 1.00
+
+priorities:
+  - "Breadth of experience across functions"
+  - "Evidence of building from scratch"
+  - "Startup or small team experience"
+  - "Full-stack or multi-disciplinary skills"
+  - "Speed to impact"

@@ -1,0 +1,69 @@
+# Big Company Recruiter Persona
+# Optimized for applicants targeting FAANG, Fortune 500, enterprise companies
+# Includes junior vs. senior weight differentiation
+
+name: big_company_recruiter
+description: |
+  For candidates targeting positions at large corporations like Google, Amazon, 
+  Microsoft, etc. These recruiters prioritize proven track records, quantified 
+  achievements, and industry keywords. Weights are adjusted based on seniority.
+
+# Weights are specified as raw points (will be normalized to 1.0)
+# For sections with junior/senior, calculator will use appropriate weight
+weights:
+  headline: 10
+  about: 15
+  experience:
+    junior: 20
+    senior: 30
+  education:
+    junior: 15
+    senior: 5
+  skills:
+    junior: 25
+    senior: 15
+  connections: 5
+  followers: 3
+  profile_pic: 5
+  cover_picture: 2
+  licenses_certs: 5
+  verified: 3
+  premium: 2
+  recommendations:
+    junior: 2
+    senior: 5
+  volunteer: 3
+  projects:
+    junior: 5
+    senior: 0
+
+# Normalized weights for the calculator (senior profile as default)
+# Total sums to 1.0
+weights_normalized:
+  headline: 0.10
+  about: 0.15
+  experience: 0.30
+  education: 0.05
+  skills: 0.15
+  connections: 0.05
+  followers: 0.03
+  profile_pic: 0.05
+  cover_picture: 0.02
+  licenses_certs: 0.05
+  verified: 0.03
+  premium: 0.02
+
+priorities:
+  - "Quantified achievements (metrics, percentages, numbers)"
+  - "Industry-relevant keywords in experience"
+  - "Leadership roles and management experience"
+  - "Avoid buzzwords (guru, ninja, rockstar)"
+  - "Clear career progression"
+  - "Avoid 'Open to Work' signal-focused headlines"
+
+anti_patterns:
+  - "Buzzwords without concrete examples"
+  - "Job duties instead of accomplishments"
+  - "Missing or very short About section"
+  - "Generic skills like 'Microsoft Office'"
+  - "Emoji overuse in professional contexts"

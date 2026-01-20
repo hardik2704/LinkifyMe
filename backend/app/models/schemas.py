@@ -113,3 +113,56 @@ class HealthResponse(BaseModel):
     status: str = "healthy"
     version: str
     environment: str
+
+
+# === New Schemas for Pre-Scoring & Feedback ===
+
+class FeedbackRequest(BaseModel):
+    """Request body for submitting feedback."""
+    
+    email: EmailStr = Field(..., description="User email address")
+    customer_id: str = Field(..., description="Customer ID from analysis")
+    would_refer: int = Field(..., ge=1, le=5, description="Would refer rating 1-5")
+    was_helpful: int = Field(..., ge=1, le=5, description="Was helpful rating 1-5")
+    suggestions: Optional[str] = Field(None, description="Optional suggestions")
+
+
+class FeedbackResponse(BaseModel):
+    """Response after submitting feedback."""
+    
+    success: bool
+    message: str
+
+
+class PreScoresRequest(BaseModel):
+    """Request for pre-scores calculation."""
+    
+    persona: str = Field(
+        default="big_company_recruiter",
+        description="Persona for scoring weights"
+    )
+
+
+class PersonaInfo(BaseModel):
+    """Information about a scoring persona."""
+    
+    name: str
+    description: str
+    priorities: list[str]
+
+
+class PersonasResponse(BaseModel):
+    """Response listing available personas."""
+    
+    personas: list[PersonaInfo]
+
+
+class DashboardStats(BaseModel):
+    """Dashboard statistics response."""
+    
+    total_analyses: int
+    today_count: int
+    average_score: float
+    recent_jobs: list[dict[str, Any]]
+    service_health: dict[str, str]
+

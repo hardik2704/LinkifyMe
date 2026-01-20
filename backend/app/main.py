@@ -10,17 +10,25 @@ from fastapi.middleware.cors import CORSMiddleware
 from app import __version__
 from app.config import settings
 from app.api.routes import router as api_router
+from app.services.logger import get_session_logger, log_info
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan events."""
-    # Startup
+    # Startup - initialize logging
+    logger = get_session_logger()
+    log_info("startup", f"🚀 Starting LinkifyMe Backend v{__version__}", {
+        "environment": settings.app_env,
+        "debug": settings.debug,
+    })
     print(f"🚀 Starting LinkifyMe Backend v{__version__}")
     print(f"   Environment: {settings.app_env}")
     print(f"   Debug: {settings.debug}")
+    print(f"   Logs: ./logs/")
     yield
     # Shutdown
+    log_info("shutdown", "👋 Shutting down LinkifyMe Backend")
     print("👋 Shutting down LinkifyMe Backend")
 
 
