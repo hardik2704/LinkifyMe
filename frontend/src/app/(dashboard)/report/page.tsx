@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Camera, Image, Type, Users, UserPlus, User, Briefcase, GraduationCap, Award, Wrench } from "lucide-react";
+import { Camera, Image, Type, Users, UserPlus, User, Briefcase, GraduationCap, Award, Wrench, CheckCircle, Crown } from "lucide-react";
 import { PageShell } from "@/components/layout/PageShell";
 import { TopNav } from "@/components/layout/TopNav";
 import { Container } from "@/components/layout/Container";
@@ -12,7 +12,7 @@ import { SectionScoreCard } from "@/components/report/SectionScoreCard";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
-// Icon mapping
+// Icon mapping for all 12 sections
 const iconMap: Record<string, React.ReactNode> = {
     "profile-photo": <Camera className="h-5 w-5" />,
     "cover-photo": <Image className="h-5 w-5" />,
@@ -24,32 +24,68 @@ const iconMap: Record<string, React.ReactNode> = {
     "education": <GraduationCap className="h-5 w-5" />,
     "certifications": <Award className="h-5 w-5" />,
     "skills": <Wrench className="h-5 w-5" />,
+    "verified": <CheckCircle className="h-5 w-5" />,
+    "premium": <Crown className="h-5 w-5" />,
 };
 
-// Default mock data
-const defaultReport = {
-    customer_id: "LM-00001",
+// Section type interface
+interface Section {
+    id: string;
+    title: string;
+    score: number;
+    max_score: number;
+    status: string;
+    analysis?: string;
+    current_status?: string;
+    ai_rewrite?: string;
+    tags?: string[];
+}
+
+interface ReportData {
+    customer_id: string;
     profile: {
-        name: "Demo User",
-        initial: "D",
-        url: "https://www.linkedin.com/in/demo-user",
+        name: string;
+        initial: string;
+        url: string;
+    };
+    overall_score: number;
+    grade_label: string;
+    executive_summary: string;
+    sections: Section[];
+    top_priorities: string[];
+}
+
+// Default fallback data with all 12 sections (shown while loading or if no customer_id)
+const defaultReport = {
+    customer_id: "LM-00000",
+    profile: {
+        name: "Loading Profile...",
+        initial: "?",
+        url: "",
     },
-    overall_score: 52,
-    grade_label: "AVERAGE",
-    executive_summary: "Overall, your profile has a solid foundation but requires significant improvements in the About, Experience, and Skills sections to make a stronger impact. Focus on enhancing these areas to better showcase your qualifications and attract opportunities in your field.",
+    overall_score: 0,
+    grade_label: "LOADING",
+    executive_summary: "Analyzing your LinkedIn profile. Please wait for the complete report to load...",
     sections: [
-        { id: "profile-photo", title: "Profile Photo", score: 8, max_score: 10, status: "optimized", analysis: "Great job! Your profile photo meets all professional standards." },
-        { id: "headline", title: "Headline", score: 9, max_score: 15, status: "needs_improvement", current_status: "Student @ IIT Delhi | Co-Founder — RentBasket | Agentix", analysis: "Your headline effectively communicates your current role but could benefit from additional keywords.", ai_rewrite: "Include role, specialization, and unique value with searchable keywords.", tags: ["Keywords", "Value Proposition", "Clarity"] },
-        { id: "connections", title: "Connections", score: 5, max_score: 5, status: "optimized", current_status: "500+ connections", analysis: "Having 500+ connections shows you are engaged with your professional community." },
-        { id: "about", title: "About", score: 6, max_score: 20, status: "critical", current_status: "Your about section is too brief.", analysis: "Your About section is crucial for telling your professional story. Consider adding a compelling narrative.", ai_rewrite: "Start with a hook that captures attention, then describe your expertise.", tags: ["Storytelling", "Keywords", "Call to Action"] },
-        { id: "experience", title: "Experience", score: 14, max_score: 20, status: "needs_improvement", analysis: "Your experience section has good content but could use more quantifiable achievements." },
+        { id: "headline", title: "Headline", score: 0, max_score: 10, status: "needs_improvement", analysis: "Loading headline analysis..." },
+        { id: "connections", title: "Connections", score: 0, max_score: 10, status: "needs_improvement", analysis: "Loading connections analysis..." },
+        { id: "followers", title: "Followers", score: 0, max_score: 10, status: "needs_improvement", analysis: "Loading followers analysis..." },
+        { id: "about", title: "About", score: 0, max_score: 10, status: "needs_improvement", analysis: "Loading about section analysis..." },
+        { id: "profile-photo", title: "Profile Photo", score: 0, max_score: 10, status: "needs_improvement", analysis: "Loading profile photo analysis..." },
+        { id: "cover-photo", title: "Cover Photo", score: 0, max_score: 10, status: "needs_improvement", analysis: "Loading cover photo analysis..." },
+        { id: "experience", title: "Experience", score: 0, max_score: 10, status: "needs_improvement", analysis: "Loading experience analysis..." },
+        { id: "education", title: "Education", score: 0, max_score: 10, status: "needs_improvement", analysis: "Loading education analysis..." },
+        { id: "skills", title: "Skills", score: 0, max_score: 10, status: "needs_improvement", analysis: "Loading skills analysis..." },
+        { id: "certifications", title: "Licenses & Certifications", score: 0, max_score: 10, status: "needs_improvement", analysis: "Loading certifications analysis..." },
+        { id: "verified", title: "Is Verified", score: 0, max_score: 10, status: "needs_improvement", analysis: "Loading verification status..." },
+        { id: "premium", title: "Is Premium", score: 0, max_score: 10, status: "needs_improvement", analysis: "Loading premium status..." },
     ],
-    top_priorities: ["Improve About", "Optimize Headline", "Add Skills"],
+    top_priorities: ["Loading...", "Please wait...", "Analyzing profile..."],
 };
 
 export default function ReportPage() {
     const [activeSection, setActiveSection] = useState("headline");
-    const [report, setReport] = useState(defaultReport);
+    const [report, setReport] = useState<ReportData>(defaultReport as ReportData);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {

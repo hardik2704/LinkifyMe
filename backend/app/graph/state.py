@@ -31,6 +31,7 @@ class LinkifyState(TypedDict, total=False):
     # === Identifiers ===
     unique_id: str              # UUID for this request
     customer_id: Optional[str]  # Sequential ID (e.g., "LM-00042")
+    attempt_id: Optional[str]   # Format: ATT-LM-00042-1
     
     # === Input Data ===
     linkedin_url: str

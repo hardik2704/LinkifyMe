@@ -147,6 +147,15 @@ async def get_status(unique_id: str, force_sheets: bool = False):
             # Don't fail - just return not found
             pass
     
+    # Debug logging for status check
+    if state:
+        log_info("status", f"Status check for {unique_id}", {
+            "scrape_status": state.get("scrape_status"),
+            "ai_status": state.get("ai_scoring_status"),
+            "has_scores": state.get("scores") is not None,
+            "progress": state.get("progress_percent", 0)
+        })
+    
     if not state:
         # Return "not found" status instead of raising exception
         # This prevents 404 spam in logs
@@ -223,13 +232,30 @@ async def get_report(customer_id: str):
     
     _, scoring = scoring_result
     
-    # Find profile info (for name, etc.)
-    # For now, we'll use a placeholder
-    profile = {
-        "name": customer_id,
-        "initial": customer_id[0].upper() if customer_id else "?",
-        "url": "",
-    }
+    # Find profile info (fetch from Profile Information sheet)
+    profile_info = None
+    pi_sheet = sheets._get_sheet("Profile Information")
+    all_values = pi_sheet.get_all_values()
+    for idx, row in enumerate(all_values):
+        # Customer ID is column 1 (index 0)
+        if len(row) > 0 and row[0] == customer_id:
+            profile_info = sheets.get_profile_info(idx + 1)
+            break
+    
+    # Build profile dict with actual data or fallback
+    if profile_info and profile_info.get("first_name"):
+        full_name = f"{profile_info.get('first_name', '')} {profile_info.get('last_name', '')}".strip()
+        profile = {
+            "name": full_name or customer_id,
+            "initial": full_name[0].upper() if full_name else customer_id[0].upper(),
+            "url": profile_info.get("linkedin_url", ""),
+        }
+    else:
+        profile = {
+            "name": customer_id,
+            "initial": customer_id[0].upper() if customer_id else "?",
+            "url": "",
+        }
     
     # Build sections
     sections = []
@@ -244,73 +270,141 @@ async def get_report(customer_id: str):
         return "critical"
     
     # Profile Photo
-    score = int(scoring.get("profile_photo_score") or 0)
+    score = scoring.get("profile_pic_score", 0)
     sections.append(SectionScore(
         id="profile-photo",
         title="Profile Photo",
         score=score,
         max_score=10,
         status=get_status(score, 10),
-        analysis=scoring.get("profile_photo_analysis"),
+        analysis=scoring.get("profile_pic_reasoning"),
+    ))
+    
+    # Cover Photo
+    score = scoring.get("cover_picture_score", 0)
+    sections.append(SectionScore(
+        id="cover-photo",
+        title="Cover Photo",
+        score=score,
+        max_score=10,
+        status=get_status(score, 10),
+        analysis=scoring.get("cover_picture_reasoning"),
     ))
     
     # Headline
-    score = int(scoring.get("headline_score") or 0)
-    ai_rewrites = scoring.get("ai_rewrites_json", "{}")
-    if isinstance(ai_rewrites, str):
-        try:
-            ai_rewrites = json.loads(ai_rewrites)
-        except:
-            ai_rewrites = {}
-    
+    score = scoring.get("headline_score", 0)
     sections.append(SectionScore(
         id="headline",
         title="Headline",
         score=score,
-        max_score=15,
-        status=get_status(score, 15),
-        analysis=scoring.get("headline_analysis"),
-        ai_rewrite=ai_rewrites.get("headline"),
+        max_score=10,
+        status=get_status(score, 10),
+        analysis=scoring.get("headline_reasoning"),
         tags=["Keywords", "Value Proposition", "Clarity"],
     ))
     
     # About
-    score = int(scoring.get("about_score") or 0)
+    score = scoring.get("about_score", 0)
     sections.append(SectionScore(
         id="about",
         title="About",
         score=score,
-        max_score=20,
-        status=get_status(score, 20),
-        analysis=scoring.get("about_analysis"),
-        ai_rewrite=ai_rewrites.get("about"),
+        max_score=10,
+        status=get_status(score, 10),
+        analysis=scoring.get("about_reasoning"),
         tags=["Storytelling", "Keywords", "Call to Action"],
     ))
     
     # Experience
-    score = int(scoring.get("experience_score") or 0)
+    score = scoring.get("experience_score", 0)
     sections.append(SectionScore(
         id="experience",
         title="Experience",
         score=score,
-        max_score=20,
-        status=get_status(score, 20),
-        analysis=scoring.get("experience_analysis"),
+        max_score=10,
+        status=get_status(score, 10),
+        analysis=scoring.get("experience_reasoning"),
+    ))
+    
+    # Education
+    score = scoring.get("education_score", 0)
+    sections.append(SectionScore(
+        id="education",
+        title="Education",
+        score=score,
+        max_score=10,
+        status=get_status(score, 10),
+        analysis=scoring.get("education_reasoning"),
+    ))
+    
+    # Skills
+    score = scoring.get("skills_score", 0)
+    sections.append(SectionScore(
+        id="skills",
+        title="Skills",
+        score=score,
+        max_score=10,
+        status=get_status(score, 10),
+        analysis=scoring.get("skills_reasoning"),
     ))
     
     # Connections
-    score = int(scoring.get("connections_score") or 0)
+    score = scoring.get("connection_score", 0)
     sections.append(SectionScore(
         id="connections",
         title="Connections",
         score=score,
-        max_score=5,
-        status=get_status(score, 5),
-        analysis=scoring.get("connections_analysis"),
+        max_score=10,
+        status=get_status(score, 10),
+        analysis=scoring.get("connection_reasoning"),
     ))
     
-    # Determine grade
-    overall_score = scoring.get("overall_score", 0)
+    # Followers
+    score = scoring.get("follower_score", 0)
+    sections.append(SectionScore(
+        id="followers",
+        title="Followers",
+        score=score,
+        max_score=10,
+        status=get_status(score, 10),
+        analysis=scoring.get("follower_reasoning"),
+    ))
+    
+    # Licenses & Certifications
+    score = scoring.get("licenses_certs_score", 0)
+    sections.append(SectionScore(
+        id="certifications",
+        title="Licenses & Certifications",
+        score=score,
+        max_score=10,
+        status=get_status(score, 10),
+        analysis=scoring.get("licenses_certs_reasoning"),
+    ))
+    
+    # Is Verified
+    score = scoring.get("verified_score", 0)
+    sections.append(SectionScore(
+        id="verified",
+        title="Is Verified",
+        score=score,
+        max_score=10,
+        status=get_status(score, 10),
+        analysis="LinkedIn verification badge indicates authenticity and builds trust with recruiters.",
+    ))
+    
+    # Is Premium
+    score = scoring.get("premium_score", 0)
+    sections.append(SectionScore(
+        id="premium",
+        title="Is Premium",
+        score=score,
+        max_score=10,
+        status=get_status(score, 10),
+        analysis="LinkedIn Premium provides additional visibility and InMail features beneficial for job seekers.",
+    ))
+    
+    # Determine grade based on final_score
+    overall_score = scoring.get("final_score", 0)
     if overall_score >= 80:
         grade = "EXCELLENT"
     elif overall_score >= 60:
@@ -320,15 +414,17 @@ async def get_report(customer_id: str):
     else:
         grade = "NEEDS WORK"
     
-    # Top priorities
-    top_priorities = ["Improve About", "Optimize Headline", "Add Skills"]
+    # Top priorities based on lowest scoring sections
+    section_scores = [(s.title, s.score, s.max_score) for s in sections]
+    sorted_sections = sorted(section_scores, key=lambda x: x[1]/x[2] if x[2] > 0 else 0)
+    top_priorities = [f"Improve {s[0]}" for s in sorted_sections[:3]]
     
     return ReportResponse(
         customer_id=customer_id,
         profile=profile,
         overall_score=overall_score,
         grade_label=grade,
-        executive_summary=scoring.get("executive_summary", ""),
+        executive_summary=scoring.get("final_score_reasoning", ""),
         sections=sections,
         top_priorities=top_priorities,
         generated_at=datetime.utcnow(),

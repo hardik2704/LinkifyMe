@@ -32,7 +32,7 @@ export function TopNav({ mode = "marketing" }: TopNavProps) {
                         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand">
                             <Zap className="h-4 w-4 text-white" />
                         </div>
-                        <span className="text-lg font-bold text-slate-900">linki.</span>
+                        <span className="text-lg font-bold text-slate-900">LinkifyMe</span>
                     </Link>
                     <div className="flex items-center gap-3">
                         <Button variant="outline" size="sm" leftIcon={<Share2 className="h-4 w-4" />}>

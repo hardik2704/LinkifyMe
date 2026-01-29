@@ -192,20 +192,59 @@ def fetch_dataset(state: LinkifyState) -> LinkifyState:
     # Update Profile Information with scraped data
     pi_row = state.get("pi_row")
     if pi_row:
+        # Extract all fields from Apify response
+        # Note: Apify may use different key names, handle both possibilities
         update_data = {
-            "scrape_status": "completed",
+            "scrape_status": "Completed",
+            # Store complete raw JSON from Apify for reference
+            "complete_scraped_data": scraped_profile,  # Will be JSON-serialized by update_profile_info
             "first_name": scraped_profile.get("firstName", ""),
             "last_name": scraped_profile.get("lastName", ""),
             "headline": scraped_profile.get("headline", ""),
-            "about": scraped_profile.get("about", ""),
-            "follower_count": str(scraped_profile.get("followersCount", "")),
-            "connection_count": str(scraped_profile.get("connectionsCount", "")),
-            "geo_location_name": scraped_profile.get("geoLocationName", ""),
-            "profile_picture_url": scraped_profile.get("profilePicture", ""),
-            "experience_json": scraped_profile.get("experience", []),
-            "education_json": scraped_profile.get("education", []),
+            "about": scraped_profile.get("about", scraped_profile.get("summary", "")),
+            "follower_count": str(
+                scraped_profile.get("followerCount") or
+                scraped_profile.get("followersCount") or 
+                scraped_profile.get("followers") or 
+                scraped_profile.get("numOfFollowers") or 
+                ""
+            ),
+            "connection_count": str(scraped_profile.get("connectionsCount", scraped_profile.get("connections", ""))),
+            "geo_location_name": scraped_profile.get("geoLocationName", scraped_profile.get("location", "")),
+            # Profile picture - try multiple possible keys
+            "profile_picture_url": (
+                scraped_profile.get("profilePicture") or 
+                scraped_profile.get("pictureUrl") or 
+                scraped_profile.get("profilePictureUrl") or 
+                scraped_profile.get("profilePicHighQuality") or
+                ""
+            ),
+            # Cover picture - try multiple possible keys (Apify uses coverImageUrl)
+            "cover_picture_url": (
+                scraped_profile.get("coverImageUrl") or
+                scraped_profile.get("backgroundImage") or
+                scraped_profile.get("backgroundUrl") or 
+                scraped_profile.get("coverImage") or
+                scraped_profile.get("backgroundPicture") or
+                scraped_profile.get("bgPic") or
+                scraped_profile.get("bannerUrl") or
+                ""
+            ),
+            # Birthday
+            "birthday": scraped_profile.get("birthDate", "") or "",
+            # Experience, Education, Skills - as JSON
+            "experience_json": scraped_profile.get("experience", scraped_profile.get("positions", [])),
+            "education_json": scraped_profile.get("education", scraped_profile.get("educations", [])),
             "skills_json": scraped_profile.get("skills", []),
-            "certifications_json": scraped_profile.get("certifications", []),
+            "certifications_json": list(
+                scraped_profile.get("certifications") or 
+                scraped_profile.get("licenses") or 
+                scraped_profile.get("certificationsList") or 
+                []
+            ),
+            # Verified and Premium status
+            "is_verified": "Yes" if scraped_profile.get("isVerified", scraped_profile.get("verified", False)) else "No",
+            "is_premium": "Yes" if scraped_profile.get("isPremium", scraped_profile.get("premium", False)) else "No",
         }
         sheets.update_profile_info(pi_row, update_data)
     

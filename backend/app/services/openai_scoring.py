@@ -276,11 +276,35 @@ class OpenAIScoringService:
         else:
             certs_str = "No certifications listed"
         
-        # Detect presence of media
-        has_profile_pic = "Yes" if scraped_profile.get("pictureUrl") or scraped_profile.get("profilePicture") else "No"
-        has_cover_image = "Yes" if scraped_profile.get("backgroundUrl") or scraped_profile.get("coverImage") else "No"
+        # Detect presence of media - check all possible Apify keys
+        has_profile_pic = "Yes" if (
+            scraped_profile.get("pictureUrl") or 
+            scraped_profile.get("profilePicture") or
+            scraped_profile.get("profilePictureUrl")
+        ) else "No"
+        
+        has_cover_image = "Yes" if (
+            scraped_profile.get("coverImageUrl") or  # Apify's actual key
+            scraped_profile.get("backgroundUrl") or 
+            scraped_profile.get("backgroundImage") or
+            scraped_profile.get("coverImage")
+        ) else "No"
+        
         is_verified = "Yes" if scraped_profile.get("isVerified") else "No"
         is_premium = "Yes" if scraped_profile.get("isPremium") or scraped_profile.get("premium") else "No"
+        
+        # Get follower/connection counts - check all possible Apify keys
+        followers = (
+            scraped_profile.get("followerCount") or  # Apify's actual key
+            scraped_profile.get("followersCount") or 
+            scraped_profile.get("followers") or 
+            "Unknown"
+        )
+        connections = (
+            scraped_profile.get("connectionsCount") or 
+            scraped_profile.get("connections") or 
+            "Unknown"
+        )
         
         # Invoke the LLM
         chain = prompt | self.llm
@@ -292,8 +316,8 @@ class OpenAIScoringService:
             "last_name": scraped_profile.get("lastName", ""),
             "headline": scraped_profile.get("headline", "No headline"),
             "about": scraped_profile.get("about", scraped_profile.get("summary", "No about section")),
-            "connections": scraped_profile.get("connectionsCount", scraped_profile.get("connections", "Unknown")),
-            "followers": scraped_profile.get("followersCount", scraped_profile.get("followers", "Unknown")),
+            "connections": connections,
+            "followers": followers,
             "location": scraped_profile.get("geoLocationName", scraped_profile.get("location", "Unknown")),
             "experience": experience_str,
             "education": education_str,

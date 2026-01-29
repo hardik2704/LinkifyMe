@@ -44,7 +44,9 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",      # Next.js dev server
+        "http://localhost:3001",      # Next.js dev server alternate port
         "http://127.0.0.1:3000",
+        "http://127.0.0.1:3001",
         "https://linkifyme.com",       # Production domain
     ],
     allow_credentials=True,
