@@ -24,6 +24,7 @@ SHEET_PROFILE_SCORING = "Profile Scoring"
 SHEET_PAYMENT_CONFIRMATION = "Payment Confirmation"
 SHEET_ACTIVITY_LOG = "Activity Log"
 SHEET_FEEDBACK = "Feedback"
+SHEET_USERS = "Users"
 
 # Scopes for Google Sheets API
 SCOPES = [
@@ -67,24 +68,284 @@ class GoogleSheetsService:
         return spreadsheet.worksheet(sheet_name)
     
     # =========================================================================
+    # Users (USR) Operations
+    # =========================================================================
+    
+    def _ensure_users_sheet(self) -> gspread.Worksheet:
+        """Ensure Users sheet exists with proper headers."""
+        headers = [
+            "User ID",           # USR-00001 format
+            "LinkedIn URL",      # Primary lookup key
+            "Email",
+            "Phone",
+            "Name",
+            "Created At",
+            "Last Attempt At",
+            "Total Attempts",
+        ]
+        return self._ensure_sheet_exists(SHEET_USERS, headers)
+    
+    def _normalize_linkedin_url(self, url: str) -> str:
+        """Normalize LinkedIn URL for consistent matching."""
+        url = url.strip().lower()
+        # Remove trailing slash
+        if url.endswith("/"):
+            url = url[:-1]
+        # Extract just the profile part
+        if "linkedin.com/in/" in url:
+            # Get everything after /in/
+            parts = url.split("/in/")
+            if len(parts) > 1:
+                username = parts[1].split("/")[0].split("?")[0]
+                return f"https://www.linkedin.com/in/{username}"
+        return url
+    
+    def find_user_by_linkedin_url(self, linkedin_url: str) -> Optional[tuple[int, dict]]:
+        """
+        Find a user by LinkedIn URL.
+        Returns (row_number, user_data) or None if not found.
+        """
+        normalized_url = self._normalize_linkedin_url(linkedin_url)
+        
+        try:
+            sheet = self._ensure_users_sheet()
+            all_values = sheet.get_all_values()
+            
+            # Skip header row (index 0)
+            for idx, row in enumerate(all_values[1:], start=2):
+                if len(row) >= 2:
+                    row_url = self._normalize_linkedin_url(row[1])
+                    if row_url == normalized_url:
+                        return (idx, {
+                            "user_id": row[0],
+                            "linkedin_url": row[1],
+                            "email": row[2] if len(row) > 2 else "",
+                            "phone": row[3] if len(row) > 3 else "",
+                            "name": row[4] if len(row) > 4 else "",
+                            "created_at": row[5] if len(row) > 5 else "",
+                            "last_attempt_at": row[6] if len(row) > 6 else "",
+                            "total_attempts": int(row[7]) if len(row) > 7 and row[7] else 0,
+                        })
+        except Exception as e:
+            import logging
+            logging.getLogger("linkify.sheets").warning(f"Error finding user: {e}")
+        
+        return None
+    
+    def find_user_by_email(self, email: str) -> Optional[tuple[int, dict]]:
+        """
+        Find a user by email address.
+        Returns (row_number, user_data) or None if not found.
+        """
+        normalized_email = email.strip().lower()
+        
+        try:
+            sheet = self._ensure_users_sheet()
+            all_values = sheet.get_all_values()
+            
+            # Skip header row (index 0)
+            for idx, row in enumerate(all_values[1:], start=2):
+                if len(row) >= 3:
+                    row_email = row[2].strip().lower()
+                    if row_email == normalized_email:
+                        return (idx, {
+                            "user_id": row[0],
+                            "linkedin_url": row[1],
+                            "email": row[2],
+                            "phone": row[3] if len(row) > 3 else "",
+                            "name": row[4] if len(row) > 4 else "",
+                            "created_at": row[5] if len(row) > 5 else "",
+                            "last_attempt_at": row[6] if len(row) > 6 else "",
+                            "total_attempts": int(row[7]) if len(row) > 7 and row[7] else 0,
+                        })
+        except Exception as e:
+            import logging
+            logging.getLogger("linkify.sheets").warning(f"Error finding user by email: {e}")
+        
+        return None
+    
+    def create_user(
+        self,
+        linkedin_url: str,
+        email: str,
+        phone: Optional[str] = None,
+        name: Optional[str] = None,
+    ) -> tuple[int, str]:
+        """
+        Create a new user record.
+        Returns (row_number, user_id).
+        """
+        from app.services.counter import get_user_id_counter
+        
+        user_id = get_user_id_counter().get_next_id()
+        now = datetime.utcnow().isoformat()
+        
+        sheet = self._ensure_users_sheet()
+        row_data = [
+            user_id,
+            linkedin_url,
+            email,
+            phone or "",
+            name or "",
+            now,           # Created At
+            "",            # Last Attempt At (empty until first analysis completes)
+            0,             # Total Attempts (0 until first analysis completes)
+        ]
+        
+        sheet.append_row(row_data, value_input_option="RAW")
+        row_number = len(sheet.get_all_values())
+        
+        return (row_number, user_id)
+    
+    def find_or_create_user(
+        self,
+        linkedin_url: str,
+        email: str,
+        phone: Optional[str] = None,
+        name: Optional[str] = None,
+    ) -> tuple[str, bool, int]:
+        """
+        Find existing user by LinkedIn URL or create new one.
+        
+        Returns (user_id, is_returning_user, total_attempts).
+        """
+        # First try to find by LinkedIn URL
+        existing = self.find_user_by_linkedin_url(linkedin_url)
+        
+        if existing:
+            row, user_data = existing
+            # Update last attempt timestamp and increment total attempts
+            new_total = user_data["total_attempts"] + 1
+            self.update_user(row, {
+                "last_attempt_at": datetime.utcnow().isoformat(),
+                "total_attempts": new_total,
+                # Update email/phone if provided and different
+                "email": email,
+                "phone": phone or user_data.get("phone", ""),
+            })
+            return (user_data["user_id"], True, new_total)
+        
+        # Create new user
+        _, user_id = self.create_user(linkedin_url, email, phone, name)
+        return (user_id, False, 1)
+    
+    def update_user(self, row: int, updates: dict[str, Any]) -> None:
+        """Update specific columns in a User row."""
+        import logging
+        logger = logging.getLogger("linkify.sheets")
+        
+        sheet = self._ensure_users_sheet()
+        
+        column_map = {
+            "user_id": 1,
+            "linkedin_url": 2,
+            "email": 3,
+            "phone": 4,
+            "name": 5,
+            "created_at": 6,
+            "last_attempt_at": 7,
+            "total_attempts": 8,
+        }
+        
+        try:
+            for key, value in updates.items():
+                if key in column_map:
+                    sheet.update_cell(row, column_map[key], value)
+        except Exception as e:
+            logger.warning(f"Failed to update user (quota?): {e}")
+    
+    def get_user(self, user_id: str) -> Optional[dict]:
+        """Get user by user_id."""
+        try:
+            sheet = self._ensure_users_sheet()
+            all_values = sheet.get_all_values()
+            
+            for row in all_values[1:]:  # Skip header
+                if row and row[0] == user_id:
+                    return {
+                        "user_id": row[0],
+                        "linkedin_url": row[1],
+                        "email": row[2] if len(row) > 2 else "",
+                        "phone": row[3] if len(row) > 3 else "",
+                        "name": row[4] if len(row) > 4 else "",
+                        "created_at": row[5] if len(row) > 5 else "",
+                        "last_attempt_at": row[6] if len(row) > 6 else "",
+                        "total_attempts": int(row[7]) if len(row) > 7 and row[7] else 0,
+                    }
+        except Exception as e:
+            import logging
+            logging.getLogger("linkify.sheets").warning(f"Error getting user: {e}")
+        
+        return None
+    
+    def get_user_attempts(self, user_id: str) -> list[dict]:
+        """
+        Get all scoring attempts for a user.
+        Returns list of attempt summaries sorted by timestamp (newest first).
+        """
+        attempts = []
+        
+        try:
+            # Get all Profile Scoring rows for this user
+            scoring_sheet = self._get_sheet(SHEET_PROFILE_SCORING)
+            all_values = scoring_sheet.get_all_values()
+            
+            # Also get Profile Info for additional context
+            pi_sheet = self._get_sheet(SHEET_PROFILE_INFO)
+            pi_values = pi_sheet.get_all_values()
+            
+            # Build a map of customer_id -> user_id from Profile Info
+            # Column 0 = Customer ID, Column 25 (index 25) = User ID (if exists)
+            customer_to_user = {}
+            for row in pi_values[1:]:  # Skip header
+                if len(row) > 25 and row[25]:  # User ID column exists
+                    customer_to_user[row[0]] = row[25]
+            
+            # Find all scoring entries for this user
+            for idx, row in enumerate(all_values[1:], start=2):  # Skip header
+                if len(row) < 17:
+                    continue
+                    
+                customer_id = row[0]
+                # Check if this customer_id belongs to this user
+                if customer_to_user.get(customer_id) == user_id:
+                    attempts.append({
+                        "attempt_id": row[1] if len(row) > 1 else "",
+                        "customer_id": customer_id,
+                        "linkedin_url": row[2] if len(row) > 2 else "",
+                        "first_name": row[3] if len(row) > 3 else "",
+                        "final_score": int(row[16]) if len(row) > 16 and row[16] else 0,
+                        "timestamp": row[28] if len(row) > 28 else "",
+                        "status": row[29] if len(row) > 29 else "",
+                    })
+            
+            # Sort by timestamp descending (newest first)
+            attempts.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
+            
+        except Exception as e:
+            import logging
+            logging.getLogger("linkify.sheets").warning(f"Error getting user attempts: {e}")
+        
+        return attempts
+    
+    # =========================================================================
     # Profile Information (PI) Operations
     # =========================================================================
     
-    def get_next_attempt_id(self, customer_id: str) -> str:
-        """Get next attempt ID for a customer. Format: ATT-{customer_id}-{N}"""
-        # This is a simple implementation that counts rows for this customer
-        # In a real DB, this would be a COUNT query
+    def get_next_attempt_id(self, user_id: str) -> str:
+        """Get next attempt ID for a user. Format: ATT-{user_id}-{NN} (zero-padded)"""
+        # Count existing attempts for this user
         sheet = self._get_sheet(SHEET_PROFILE_INFO)
         all_values = sheet.get_all_values()
         
         count = 0
         for row in all_values:
-            # Check if column 1 (Customer ID) matches
-            if len(row) > 1 and row[1] == customer_id:
+            # Check if column 1 (User ID) matches
+            if len(row) > 0 and row[0] == user_id:
                 count += 1
         
-        # Next attempt is count + 1
-        return f"ATT-{customer_id}-{count + 1}"
+        # Next attempt is count + 1, zero-padded to 2 digits
+        return f"ATT-{user_id}-{count + 1:02d}"
 
     def create_profile_info(
         self,
@@ -93,13 +354,14 @@ class GoogleSheetsService:
         email: str,
         phone: Optional[str],
         target_group: str,
+        user_id: Optional[str] = None,
     ) -> int:
         """
         Create a new Profile Information row.
         Returns the row number.
         
         Column structure (25 columns):
-        1. Customer ID | 2. Attempt ID | 3. LinkedIn Profile | 4. Scrape Status | 5. Date And Time |
+        1. User ID | 2. Attempt ID | 3. LinkedIn Profile | 4. Scrape Status | 5. Date And Time |
         6. Email ID | 7. Mobile Number | 8. Target Group Preference | 9. Complete Scraped Data |
         10. First Name | 11. Last Name | 12. Headline | 13. Connection count | 14. Follower count |
         15. About | 16. Profile Pic | 17. Cover_picture | 18. GeoLocation Name | 19. BirthDay |
@@ -109,9 +371,9 @@ class GoogleSheetsService:
         sheet = self._get_sheet(SHEET_PROFILE_INFO)
         now = datetime.utcnow().strftime("%d/%m/%Y, %I:%M:%S %p")  # User's preferred date format
         
-        # Append row matching user's 25-column format
+        # Append row matching 25-column format (User ID is now column 1)
         row_data = [
-            "",  # Customer ID - assigned later (column 1)
+            user_id or "",  # User ID (column 1) - was Customer ID
             "",  # Attempt ID - assigned later (column 2)
             linkedin_url,  # LinkedIn Profile (column 3)
             "pending",  # Scrape Status (column 4)
@@ -147,7 +409,7 @@ class GoogleSheetsService:
         """Update specific columns in a Profile Information row.
         
         Column structure (25 columns, 1-indexed):
-        1. Customer ID | 2. Attempt ID | 3. LinkedIn Profile | 4. Scrape Status | 5. Date And Time |
+        1. User ID | 2. Attempt ID | 3. LinkedIn Profile | 4. Scrape Status | 5. Date And Time |
         6. Email ID | 7. Mobile Number | 8. Target Group Preference | 9. Complete Scraped Data |
         10. First Name | 11. Last Name | 12. Headline | 13. Connection count | 14. Follower count |
         15. About | 16. Profile Pic | 17. Cover_picture | 18. GeoLocation Name | 19. BirthDay |
@@ -159,9 +421,9 @@ class GoogleSheetsService:
         
         sheet = self._get_sheet(SHEET_PROFILE_INFO)
         
-        # Column mapping matching user's 25-column format (1-indexed)
+        # Column mapping matching user's format (1-indexed) - 25 columns
         column_map = {
-            "customer_id": 1,
+            "user_id": 1,  # Was customer_id
             "attempt_id": 2,
             "linkedin_url": 3,
             "scrape_status": 4,
@@ -207,7 +469,7 @@ class GoogleSheetsService:
         """Get a Profile Information row by row number.
         
         Indices (0-based) for 25-column schema:
-        0: Customer ID | 1: Attempt ID | 2: LinkedIn Profile | 3: Scrape Status | 4: Date Time |
+        0: User ID | 1: Attempt ID | 2: LinkedIn Profile | 3: Scrape Status | 4: Date Time |
         5: Email | 6: Phone | 7: Target Group | 8: Complete Scraped Data |
         9: First Name | 10: Last Name | 11: Headline | 12: Connection Count | 13: Follower Count |
         14: About | 15: Profile Pic | 16: Cover Pic | 17: Geo Name | 18: Birthday |
@@ -221,7 +483,7 @@ class GoogleSheetsService:
             values.append("")
         
         return {
-            "customer_id": values[0],
+            "user_id": values[0],  # Was customer_id
             "attempt_id": values[1],
             "linkedin_url": values[2],
             "scrape_status": values[3],
@@ -263,20 +525,20 @@ class GoogleSheetsService:
     # Profile Scoring (PS) Operations
     # =========================================================================
     
-    def create_profile_scoring(self, customer_id: str) -> int:
+    def create_profile_scoring(self, user_id: str) -> int:
         """Create a new Profile Scoring row. Returns row number."""
         sheet = self._get_sheet(SHEET_PROFILE_SCORING)
         now = datetime.utcnow().isoformat()
         
         # Initialize with placeholders matching user's 31-column format
-        # 1: Customer ID
+        # 1: User ID (was Customer ID)
         # 2: Attempt ID
         # 3: LinkedIn
         # ...
         # 30: Status
         # 31: Remarks
         
-        row_data = [customer_id] + [""] * 30
+        row_data = [user_id] + [""] * 30
         
         # Set specific default values
         row_data[29] = "pending" # Status (col 30, index 29)
@@ -289,7 +551,7 @@ class GoogleSheetsService:
         """Update specific columns in a Profile Scoring row.
         
         Column structure matches user's required 31-column format:
-        Customer ID | Attempt ID | LinkedIn Profile | First Name | Headline Score | Connection Score | 
+        User ID | Attempt ID | LinkedIn Profile | First Name | Headline Score | Connection Score | 
         Follower Score | About Score | Profile Pic Score | Cover_picture Score | 
         Experience Score | Education Score | Skills Score | Licenses & Certifications Score | 
         Is Verified Score | Is Premium Score | Final Score | Headline Reasoning | 
@@ -305,7 +567,7 @@ class GoogleSheetsService:
         # New column mapping matching user's required format (1-indexed)
         # Shifted by 1 due to Attempt ID insertion at col 2
         column_map = {
-            "customer_id": 1,
+            "user_id": 1,  # Was customer_id
             "attempt_id": 2,
             "linkedin_url": 3,
             "first_name": 4,
@@ -373,7 +635,7 @@ class GoogleSheetsService:
         
         return {
             # Basic info (columns 1-4)
-            "customer_id": values[0],
+            "user_id": values[0],  # Was customer_id
             "attempt_id": values[1],
             "linkedin_url": values[2],
             "first_name": values[3],
@@ -412,14 +674,30 @@ class GoogleSheetsService:
             "profile_photo_score": safe_int(values[8]),  # Alias for profile_pic_score
         }
     
-    def find_scoring_by_customer_id(self, customer_id: str) -> Optional[tuple[int, dict]]:
-        """Find scoring by customer_id. Returns (row_number, data) or None."""
+    def find_scoring_by_user_id(self, user_id: str) -> Optional[tuple[int, dict]]:
+        """Find scoring by user_id. Returns (row_number, data) or None."""
         sheet = self._get_sheet(SHEET_PROFILE_SCORING)
         all_values = sheet.get_all_values()
         
         for idx, row in enumerate(all_values):
-            if row and row[0] == customer_id:
+            if row and row[0] == user_id:
                 return (idx + 1, self.get_profile_scoring(idx + 1))
+        
+        return None
+    
+    def get_scores_by_attempt_id(self, attempt_id: str) -> Optional[dict]:
+        """
+        Find scoring data by attempt_id.
+        
+        Returns scoring dict if found, None otherwise.
+        """
+        sheet = self._get_sheet(SHEET_PROFILE_SCORING)
+        all_values = sheet.get_all_values()
+        
+        # Column 2 (index 1) is Attempt ID
+        for idx, row in enumerate(all_values[1:], start=2):  # Skip header
+            if len(row) > 1 and row[1] == attempt_id:
+                return self.get_profile_scoring(idx)
         
         return None
     

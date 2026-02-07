@@ -48,6 +48,8 @@ app.add_middleware(
         "http://127.0.0.1:3000",
         "http://127.0.0.1:3001",
         "https://linkifyme.com",       # Production domain
+        "https://*.vercel.app",        # Vercel preview deployments
+        "https://linkifyme.vercel.app",  # Vercel production (update with your actual domain)
     ],
     allow_credentials=True,
     allow_methods=["*"],

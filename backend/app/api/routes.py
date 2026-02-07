@@ -25,6 +25,13 @@ from app.models.schemas import (
     PersonaInfo,
     PersonasResponse,
     DashboardStats,
+    # User Account System
+    UserInfo,
+    AttemptSummary,
+    UserAttemptsResponse,
+    ScoreComparison,
+    ComparisonResponse,
+    UserLookupResponse,
 )
 from app.graph.state import create_initial_state
 from app.graph.workflow import get_workflow
@@ -99,9 +106,17 @@ async def start_intake(
         target_group=request.target_group,
     )
     
+    # Check if this is a returning user (quick lookup before workflow starts)
+    sheets = get_sheets_service()
+    existing_user = sheets.find_user_by_linkedin_url(request.linkedin_url)
+    is_returning_user = existing_user is not None
+    user_id = existing_user[1]["user_id"] if existing_user else None
+    previous_attempts = existing_user[1].get("total_attempts", 0) if existing_user else 0
+    
     log_event("intake", "received", f"New analysis request for {request.linkedin_url}", {
         "unique_id": state["unique_id"],
         "target_group": request.target_group,
+        "is_returning_user": is_returning_user,
     })
     
     # Store in cache
@@ -112,7 +127,10 @@ async def start_intake(
     
     return IntakeResponse(
         unique_id=state["unique_id"],
-        message="Analysis started",
+        user_id=user_id,
+        is_returning_user=is_returning_user,
+        previous_attempts_count=previous_attempts,
+        message="Welcome back!" if is_returning_user else "Analysis started",
         status="pending",
     )
 
@@ -174,12 +192,14 @@ async def get_status(unique_id: str, force_sheets: bool = False):
     payment_status = state.get("payment_status", "pending")
     ai_status = state.get("ai_scoring_status", "")
     error_message = state.get("error_message")
+    has_scores = state.get("scores") is not None  # Check if scoring completed
     
     # Determine current step and progress
     if scrape_status == "failed":
         current_step = "failed"
         progress = 0
-    elif scrape_status == "completed" and ai_status == "completed":
+    elif (scrape_status == "completed" and ai_status == "completed") or has_scores:
+        # Complete when we have scores OR ai_status says completed
         current_step = "complete"
         progress = 100
     elif ai_status == "scoring":
@@ -214,50 +234,56 @@ async def get_status(unique_id: str, force_sheets: bool = False):
     return StatusResponse(
         unique_id=unique_id,
         customer_id=state.get("customer_id"),
+        attempt_id=state.get("attempt_id"),  # ATT-LM-XXXXX-X for report URL
         scrape_status=scrape_status,
         payment_status=payment_status,
         current_step=current_step,
         progress_percent=progress,
+        has_scores=has_scores,
         error_message=error_message,
     )
 
 
-@router.get("/report/{customer_id}", response_model=ReportResponse)
-async def get_report(customer_id: str):
+@router.get("/report/{report_id}", response_model=ReportResponse)
+async def get_report(report_id: str):
     """
-    Get the full analysis report for a customer.
+    Get the full analysis report.
+    Accepts attempt_id (ATT-LM-XXXXX-X) - this is the primary lookup key now.
     """
     sheets = get_sheets_service()
     
-    # Find scoring data
-    scoring_result = sheets.find_scoring_by_customer_id(customer_id)
-    if not scoring_result:
+    # Use get_scores_by_attempt_id for lookup (attempt_id is column 2)
+    scoring = sheets.get_scores_by_attempt_id(report_id)
+    if not scoring:
         raise HTTPException(status_code=404, detail="Report not found")
     
-    _, scoring = scoring_result
+    # Get user_id from scoring (now column 1)
+    user_id = scoring.get("user_id", "")
     
-    # Find profile info (fetch from Profile Information sheet)
+    # Find profile info by user_id (column 1 in Profile Information)
     profile_info = None
     pi_sheet = sheets._get_sheet("Profile Information")
     all_values = pi_sheet.get_all_values()
     for idx, row in enumerate(all_values):
-        # Customer ID is column 1 (index 0)
-        if len(row) > 0 and row[0] == customer_id:
+        # User ID is column 1 (index 0), Attempt ID is column 2 (index 1)
+        # Match by attempt_id first for accurate profile fetch
+        if len(row) > 1 and row[1] == report_id:
             profile_info = sheets.get_profile_info(idx + 1)
             break
+
     
     # Build profile dict with actual data or fallback
     if profile_info and profile_info.get("first_name"):
         full_name = f"{profile_info.get('first_name', '')} {profile_info.get('last_name', '')}".strip()
         profile = {
-            "name": full_name or customer_id,
-            "initial": full_name[0].upper() if full_name else customer_id[0].upper(),
+            "name": full_name or user_id,
+            "initial": full_name[0].upper() if full_name else (user_id[0].upper() if user_id else "?"),
             "url": profile_info.get("linkedin_url", ""),
         }
     else:
         profile = {
-            "name": customer_id,
-            "initial": customer_id[0].upper() if customer_id else "?",
+            "name": user_id or report_id,
+            "initial": user_id[0].upper() if user_id else "?",
             "url": "",
         }
     
@@ -424,7 +450,7 @@ async def get_report(customer_id: str):
     top_priorities = [f"Improve {s[0]}" for s in sorted_sections[:3]]
     
     return ReportResponse(
-        customer_id=customer_id,
+        customer_id=user_id or report_id,  # Using user_id (from scoring) or fallback to report_id
         profile=profile,
         overall_score=overall_score,
         grade_label=grade,
@@ -480,17 +506,18 @@ async def get_customer_pre_scores(customer_id: str, persona: str = "big_company_
     Get deterministic pre-scores for a customer.
     
     Uses rule-based scoring (no AI API call).
+    Note: customer_id parameter kept for backward compatibility, but now expects attempt_id.
     """
     sheets = get_sheets_service()
     
     # Find profile info
     result = sheets.find_profile_by_unique_id(customer_id)
     if not result:
-        # Try finding by customer_id in scoring sheet
-        scoring_result = sheets.find_scoring_by_customer_id(customer_id)
-        if not scoring_result:
+        # Try finding by attempt_id in scoring sheet
+        scoring_data = sheets.get_scores_by_attempt_id(customer_id)
+        if not scoring_data:
             raise HTTPException(status_code=404, detail="Customer not found")
-        _, data = scoring_result
+        data = scoring_data
         # We need the scraped profile - check cache
         if customer_id in _status_cache:
             profile = _status_cache[customer_id].get("scraped_profile", {})
@@ -704,12 +731,10 @@ async def generate_pdf_report(customer_id: str, persona: str = "big_company_recr
     
     sheets = get_sheets_service()
     
-    # Get scoring data
-    scoring_result = sheets.find_scoring_by_customer_id(customer_id)
-    if not scoring_result:
+    # Get scoring data by attempt_id
+    scoring_data = sheets.get_scores_by_attempt_id(customer_id)
+    if not scoring_data:
         raise HTTPException(status_code=404, detail="Scoring data not found")
-    
-    _, scoring_data = scoring_result
     
     # Get profile data from cache or sheets
     profile = {}
@@ -821,3 +846,196 @@ async def debug_get_cache(unique_id: str):
         "section_analyses": state.get("section_analyses", {}),
         "executive_summary": state.get("executive_summary"),
     }
+
+
+# =============================================================================
+# User Account System Endpoints
+# =============================================================================
+
+@router.get("/user/lookup", response_model=UserLookupResponse)
+async def lookup_user(linkedin_url: str = None, email: str = None):
+    """
+    Look up an existing user by LinkedIn URL or email.
+    
+    Returns user info if found, for pre-filling intake forms
+    and showing returning user status.
+    """
+    if not linkedin_url and not email:
+        raise HTTPException(
+            status_code=400,
+            detail="Either linkedin_url or email must be provided"
+        )
+    
+    sheets = get_sheets_service()
+    
+    # Try LinkedIn URL first (primary identifier)
+    result = None
+    if linkedin_url:
+        result = sheets.find_user_by_linkedin_url(linkedin_url)
+    
+    # Fall back to email
+    if not result and email:
+        result = sheets.find_user_by_email(email)
+    
+    if result:
+        _, user_data = result
+        return UserLookupResponse(
+            found=True,
+            user=UserInfo(
+                user_id=user_data["user_id"],
+                linkedin_url=user_data["linkedin_url"],
+                email=user_data["email"],
+                phone=user_data.get("phone"),
+                name=user_data.get("name"),
+                total_attempts=user_data.get("total_attempts", 0),
+                last_attempt_at=user_data.get("last_attempt_at"),
+                created_at=user_data.get("created_at"),
+            ),
+            message="User found"
+        )
+    
+    return UserLookupResponse(
+        found=False,
+        user=None,
+        message="No user found with provided credentials"
+    )
+
+
+@router.get("/user/{user_id}/attempts", response_model=UserAttemptsResponse)
+async def get_user_attempts(user_id: str):
+    """
+    Get attempt history for a user.
+    
+    Returns all analysis attempts (newest first) with scores.
+    """
+    sheets = get_sheets_service()
+    
+    # Get user info
+    user_data = sheets.get_user(user_id)
+    if not user_data:
+        raise HTTPException(status_code=404, detail=f"User {user_id} not found")
+    
+    # Get attempts
+    attempts = sheets.get_user_attempts(user_id)
+    
+    return UserAttemptsResponse(
+        user=UserInfo(
+            user_id=user_data["user_id"],
+            linkedin_url=user_data["linkedin_url"],
+            email=user_data["email"],
+            phone=user_data.get("phone"),
+            name=user_data.get("name"),
+            total_attempts=user_data.get("total_attempts", 0),
+            last_attempt_at=user_data.get("last_attempt_at"),
+            created_at=user_data.get("created_at"),
+        ),
+        attempts=[
+            AttemptSummary(
+                attempt_id=a["attempt_id"],
+                customer_id=a["customer_id"],
+                final_score=a["final_score"],
+                timestamp=a["timestamp"],
+                linkedin_url=a["linkedin_url"],
+                first_name=a.get("first_name"),
+                status=a.get("status"),
+            )
+            for a in attempts
+        ]
+    )
+
+
+@router.get("/comparison/{current_attempt_id}/{previous_attempt_id}", response_model=ComparisonResponse)
+async def compare_attempts(current_attempt_id: str, previous_attempt_id: str):
+    """
+    Compare two analysis attempts to show score progression.
+    
+    Returns section-by-section comparison with delta indicators.
+    """
+    sheets = get_sheets_service()
+    
+    # Get scoring data for both attempts
+    current_scoring = sheets.get_scores_by_attempt_id(current_attempt_id)
+    previous_scoring = sheets.get_scores_by_attempt_id(previous_attempt_id)
+    
+    if not current_scoring:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Current attempt {current_attempt_id} not found"
+        )
+    if not previous_scoring:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Previous attempt {previous_attempt_id} not found"
+        )
+    
+    # Build section comparisons
+    sections_to_compare = [
+        ("profile_picture", "Profile Picture"),
+        ("cover_image", "Cover Image"),
+        ("headline", "Headline"),
+        ("about", "About Section"),
+        ("experience", "Experience"),
+        ("education", "Education"),
+        ("skills", "Skills"),
+        ("connections", "Connections"),
+        ("recommendations", "Recommendations"),
+    ]
+    
+    comparisons = []
+    for section_key, section_name in sections_to_compare:
+        curr_score = current_scoring.get(f"{section_key}_score", 0) or 0
+        prev_score = previous_scoring.get(f"{section_key}_score", 0) or 0
+        delta = curr_score - prev_score
+        
+        if delta > 0:
+            direction = "improved"
+        elif delta < 0:
+            direction = "declined"
+        else:
+            direction = "unchanged"
+        
+        comparisons.append(ScoreComparison(
+            section=section_name,
+            current_score=curr_score,
+            previous_score=prev_score,
+            delta=delta,
+            change_direction=direction,
+        ))
+    
+    # Overall delta
+    curr_total = current_scoring.get("final_score", 0) or 0
+    prev_total = previous_scoring.get("final_score", 0) or 0
+    overall_delta = curr_total - prev_total
+    
+    # Generate summary
+    improved = sum(1 for c in comparisons if c.change_direction == "improved")
+    declined = sum(1 for c in comparisons if c.change_direction == "declined")
+    
+    if overall_delta > 0:
+        summary = f"Overall improvement of {overall_delta} points! {improved} sections improved."
+    elif overall_delta < 0:
+        summary = f"Score decreased by {abs(overall_delta)} points. {declined} sections need attention."
+    else:
+        summary = "No overall change in score between attempts."
+    
+    return ComparisonResponse(
+        current_attempt=AttemptSummary(
+            attempt_id=current_attempt_id,
+            customer_id=current_scoring.get("customer_id", ""),
+            final_score=curr_total,
+            timestamp=current_scoring.get("timestamp", ""),
+            linkedin_url=current_scoring.get("linkedin_url", ""),
+            first_name=current_scoring.get("first_name"),
+        ),
+        previous_attempt=AttemptSummary(
+            attempt_id=previous_attempt_id,
+            customer_id=previous_scoring.get("customer_id", ""),
+            final_score=prev_total,
+            timestamp=previous_scoring.get("timestamp", ""),
+            linkedin_url=previous_scoring.get("linkedin_url", ""),
+            first_name=previous_scoring.get("first_name"),
+        ),
+        overall_delta=overall_delta,
+        sections=comparisons,
+        summary=summary,
+    )

@@ -1,0 +1,33 @@
+# render.yaml - Render Blueprint
+# This defines your service configuration
+
+services:
+  - type: web
+    name: linkifyme-backend
+    runtime: python
+    region: oregon  # or singapore for lower latency in India
+    plan: free      # Free tier
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: APP_ENV
+        value: production
+      - key: DEBUG
+        value: false
+      - key: LOG_LEVEL
+        value: INFO
+      # Secret env vars - set these in Render dashboard
+      - key: GOOGLE_SERVICE_ACCOUNT_JSON
+        sync: false
+      - key: GOOGLE_SHEET_ID
+        sync: false
+      - key: APIFY_API_TOKEN
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: PDFSHIFT_API_KEY
+        sync: false
+    healthCheckPath: /health
+    autoDeploy: true  # Auto deploy on git push

@@ -46,10 +46,16 @@ export default function LoaderPage() {
     const [error, setError] = useState<string | null>(null);
     const [statusMessage, setStatusMessage] = useState("Initializing...");
     const [isTerminal, setIsTerminal] = useState(false);
+    const [backendProgress, setBackendProgress] = useState(0);
+    const [elapsedSeconds, setElapsedSeconds] = useState(0);
+    const [completionTime, setCompletionTime] = useState<number | null>(null);
 
     // Backoff state
     const backoffRef = useRef(0);
     const pollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const autoProgressRef = useRef<NodeJS.Timeout | null>(null);
+    const startTimeRef = useRef<number>(Date.now());
+    const isTerminalRef = useRef(false);  // Ref to avoid stale closure in poll
 
     const pollStatus = useCallback(async () => {
         const uniqueId = sessionStorage.getItem("linkify_unique_id");
@@ -88,31 +94,19 @@ export default function LoaderPage() {
     }, []);
 
     useEffect(() => {
-        // Handle visibility change - pause polling when tab hidden
-        const handleVisibilityChange = () => {
-            if (document.hidden && pollTimeoutRef.current) {
-                clearTimeout(pollTimeoutRef.current);
-                pollTimeoutRef.current = null;
-            }
-        };
-
-        document.addEventListener("visibilitychange", handleVisibilityChange);
-
+        // Poll function for status checks
         const poll = async () => {
-            // Don't poll if terminal state reached
-            if (isTerminal) return;
+            // Don't poll if terminal state reached (use ref to avoid stale closure)
+            if (isTerminalRef.current) return;
 
             const status = await pollStatus();
+            console.log("[Loader] Status received:", status);
 
             if (status) {
-                // Check for terminal states
-                const currentState = status.current_step || status.scrape_status;
-                if (TERMINAL_STATES.includes(currentState)) {
-                    setIsTerminal(true);
+                // Update backend progress (used as floor for auto-progress)
+                if (status.progress_percent) {
+                    setBackendProgress(status.progress_percent);
                 }
-
-                // Update progress
-                setProgress(status.progress_percent);
 
                 // Handle failed state
                 if (status.current_step === "failed" || status.scrape_status === "failed") {
@@ -121,45 +115,80 @@ export default function LoaderPage() {
                     return;
                 }
 
-                // Handle completion
-                if (status.current_step === "complete" || status.scrape_status === "completed") {
+                // Handle completion - workflow is done
+                const isComplete = status.current_step === "complete" ||
+                    status.has_scores === true ||
+                    (status.scrape_status === "completed" && status.has_scores);
+
+                console.log("[Loader] isComplete:", isComplete, "attempt_id:", status.attempt_id);
+
+                // Use attempt_id for report URL (primary), fall back to customer_id
+                const reportId = status.attempt_id || status.customer_id;
+
+                if (isComplete && reportId) {
+                    // Mark as terminal to stop further polling
+                    isTerminalRef.current = true;
+
+                    // Record completion time
+                    const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000);
+                    setCompletionTime(elapsed);
+                    setProgress(100);
                     setCurrentStep(3);
                     setStatusMessage("Analysis Complete!");
                     setIsTerminal(true);
 
-                    if (status.customer_id) {
-                        sessionStorage.setItem("linkify_customer_id", status.customer_id);
-                        setTimeout(() => router.push("/report"), 1000);
-                    }
+                    sessionStorage.setItem("linkify_attempt_id", reportId);
+                    console.log("[Loader] Redirecting to:", `/report?attempt_id=${reportId}`);
+
+                    // IMMEDIATE redirect - no setTimeout delay
+                    window.location.href = `/report?attempt_id=${reportId}`;
                     return;
                 }
 
-                // Update step based on status
-                if (status.current_step === "scoring" || status.ai_status === "scoring") {
+                // Update step based on status - improved detection
+                if (status.has_scores || status.ai_status === "completed") {
+                    // AI completed, generating report
                     setCurrentStep(2);
+                    setStatusMessage("Generating Report...");
+                } else if (status.current_step === "scoring" || status.ai_status === "scoring" ||
+                    (status.scrape_status === "completed" && !status.has_scores)) {
+                    // Scrape done, AI running or about to start
+                    setCurrentStep(1);
                     setStatusMessage("Running AI Analysis...");
-                } else if (status.scrape_status === "completed" && !status.ai_status) {
-                    // Scrape done, AI about to start
-                    setCurrentStep(2);
-                    setStatusMessage("Starting AI Analysis...");
                 } else if (status.current_step === "scraping" || status.scrape_status === "scraping") {
-                    setCurrentStep(1);
+                    setCurrentStep(0);
                     setStatusMessage("Scraping Your LinkedIn...");
-                } else if (status.current_step === "payment" || status.payment_status === "succeeded") {
-                    setCurrentStep(1);
-                    setStatusMessage("Starting Scrape...");
                 } else {
                     setCurrentStep(0);
-                    setStatusMessage("Preparing Analysis...");
+                    setStatusMessage("Starting Analysis...");
                 }
             }
 
             // Schedule next poll with backoff
-            if (!isTerminal) {
+            if (!isTerminalRef.current) {
                 const nextPoll = backoffRef.current || POLL_INTERVAL_MS;
                 pollTimeoutRef.current = setTimeout(poll, nextPoll);
             }
         };
+
+        // Handle visibility change - pause/resume polling when tab hidden/visible
+        const handleVisibilityChange = () => {
+            if (document.hidden) {
+                // Tab hidden - stop polling to save resources
+                if (pollTimeoutRef.current) {
+                    clearTimeout(pollTimeoutRef.current);
+                    pollTimeoutRef.current = null;
+                }
+            } else {
+                // Tab visible again - immediately poll if not terminal
+                if (!isTerminalRef.current && !pollTimeoutRef.current) {
+                    console.log("[Loader] Tab visible - resuming poll");
+                    poll();
+                }
+            }
+        };
+
+        document.addEventListener("visibilitychange", handleVisibilityChange);
 
         // Initial poll
         poll();
@@ -170,7 +199,35 @@ export default function LoaderPage() {
                 clearTimeout(pollTimeoutRef.current);
             }
         };
-    }, [pollStatus, router, isTerminal]);
+    }, [pollStatus]);  // Removed isTerminal from deps - using ref now
+
+    // Auto-progress effect: increment by 1% every 3 seconds (minimum visual progress)
+    useEffect(() => {
+        if (isTerminal || error) {
+            if (autoProgressRef.current) {
+                clearInterval(autoProgressRef.current);
+            }
+            return;
+        }
+
+        autoProgressRef.current = setInterval(() => {
+            setProgress((prev) => {
+                // Don't go past 95 unless backend says complete
+                const maxAuto = 95;
+                // Ensure we're always at least at backend progress
+                const floor = Math.max(prev, backendProgress);
+                // Increment by 1, but don't exceed maxAuto
+                const next = Math.min(floor + 1, maxAuto);
+                return next;
+            });
+        }, 3000);
+
+        return () => {
+            if (autoProgressRef.current) {
+                clearInterval(autoProgressRef.current);
+            }
+        };
+    }, [isTerminal, error, backendProgress]);
 
     // Rotate tips
     useEffect(() => {
@@ -179,6 +236,24 @@ export default function LoaderPage() {
         }, 5000);
         return () => clearInterval(tipInterval);
     }, []);
+
+    // Elapsed time counter
+    useEffect(() => {
+        if (isTerminal) return;
+
+        const timer = setInterval(() => {
+            setElapsedSeconds(Math.floor((Date.now() - startTimeRef.current) / 1000));
+        }, 1000);
+
+        return () => clearInterval(timer);
+    }, [isTerminal]);
+
+    // Format elapsed time as MM:SS
+    const formatTime = (seconds: number) => {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
+    };
 
     // Demo mode disabled - using real backend polling
     // To enable demo mode for testing without backend, uncomment below
@@ -316,12 +391,23 @@ export default function LoaderPage() {
                                     <div
                                         key={idx}
                                         className={`w-2 h-2 rounded-full transition-all duration-300 ${idx === tipIndex
-                                                ? "bg-amber-500 scale-125"
-                                                : "bg-amber-200"
+                                            ? "bg-amber-500 scale-125"
+                                            : "bg-amber-200"
                                             }`}
                                     />
                                 ))}
                             </div>
+                        </div>
+
+                        {/* Elapsed Time */}
+                        <div className="mt-6 text-center">
+                            <p className="text-sm text-slate-400">
+                                {completionTime !== null ? (
+                                    <>✅ Completed in <span className="font-semibold text-brand">{formatTime(completionTime)}</span></>
+                                ) : (
+                                    <>⏱️ Elapsed: <span className="font-mono font-semibold text-slate-600">{formatTime(elapsedSeconds)}</span></>
+                                )}
+                            </p>
                         </div>
                     </GlassPanel>
                 </motion.div>

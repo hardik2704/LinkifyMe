@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { ArrowLeft, Search, Sparkles } from "lucide-react";
+import { ArrowLeft, Search, Sparkles, User, History } from "lucide-react";
 import { PageShell } from "@/components/layout/PageShell";
 import { Container } from "@/components/layout/Container";
 import { GlassPanel } from "@/components/ui/GlassPanel";
@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 import { Select } from "@/components/ui/Select";
+import { lookupUser, submitIntake, type UserInfo } from "@/lib/api";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -26,34 +27,72 @@ export default function IntakePage() {
     const [phone, setPhone] = useState("");
     const [targetGroup, setTargetGroup] = useState("");
 
+    // Returning user state
+    const [returningUser, setReturningUser] = useState<UserInfo | null>(null);
+    const [isCheckingUser, setIsCheckingUser] = useState(false);
+
+    // Debounced user lookup when LinkedIn URL changes
+    const checkForReturningUser = useCallback(async (url: string) => {
+        if (!url || url.length < 20) {
+            setReturningUser(null);
+            return;
+        }
+
+        setIsCheckingUser(true);
+        try {
+            const result = await lookupUser(url);
+            if (result.found && result.user) {
+                setReturningUser(result.user);
+                // Pre-fill email if available
+                if (result.user.email && !email) {
+                    setEmail(result.user.email);
+                }
+                if (result.user.phone && !phone) {
+                    setPhone(result.user.phone);
+                }
+            } else {
+                setReturningUser(null);
+            }
+        } catch {
+            // Silently fail - user lookup is optional
+            setReturningUser(null);
+        } finally {
+            setIsCheckingUser(false);
+        }
+    }, [email, phone]);
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (linkedinUrl.includes("linkedin.com/in/")) {
+                checkForReturningUser(linkedinUrl);
+            }
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [linkedinUrl, checkForReturningUser]);
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
         setError(null);
 
         try {
-            const response = await fetch(`${API_BASE}/api/intake`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    linkedin_url: linkedinUrl,
-                    email: email,
-                    phone: phone || undefined,
-                    target_group: targetGroup,
-                }),
+            const data = await submitIntake({
+                linkedin_url: linkedinUrl,
+                email: email,
+                phone: phone || undefined,
+                target_group: targetGroup,
             });
 
-            if (!response.ok) {
-                const data = await response.json();
-                throw new Error(data.detail || "Failed to start analysis");
+            // Store user info for loader page
+            sessionStorage.setItem("linkify_unique_id", data.unique_id);
+            if (data.user_id) {
+                sessionStorage.setItem("linkify_user_id", data.user_id);
+            }
+            if (data.is_returning_user) {
+                sessionStorage.setItem("linkify_returning_user", "true");
+                sessionStorage.setItem("linkify_previous_attempts", String(data.previous_attempts_count));
             }
 
-            const data = await response.json();
-
-            // Store the unique_id and redirect to loader
-            sessionStorage.setItem("linkify_unique_id", data.unique_id);
             router.push("/loader");
 
         } catch (err) {
@@ -115,6 +154,36 @@ export default function IntakePage() {
                 >
                     <GlassPanel className="p-8">
                         <form onSubmit={handleSubmit} className="space-y-6">
+                            {/* Returning User Banner */}
+                            {returningUser && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: -10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className="p-4 rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200"
+                                >
+                                    <div className="flex items-start gap-3">
+                                        <div className="h-10 w-10 rounded-lg bg-emerald-100 flex items-center justify-center flex-shrink-0">
+                                            <User className="h-5 w-5 text-emerald-600" />
+                                        </div>
+                                        <div className="flex-1">
+                                            <p className="font-medium text-emerald-800">
+                                                Welcome back{returningUser.name ? `, ${returningUser.name.split(" ")[0]}` : ""}! 👋
+                                            </p>
+                                            <p className="text-sm text-emerald-600 mt-0.5">
+                                                You&apos;ve completed {returningUser.total_attempts} analysis{returningUser.total_attempts !== 1 ? "es" : ""} before.
+                                            </p>
+                                            <Link
+                                                href={`/profile?user_id=${returningUser.user_id}`}
+                                                className="inline-flex items-center gap-1 text-sm font-medium text-emerald-700 hover:text-emerald-800 mt-2"
+                                            >
+                                                <History className="h-4 w-4" />
+                                                View your history →
+                                            </Link>
+                                        </div>
+                                    </div>
+                                </motion.div>
+                            )}
+
                             {error && (
                                 <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">
                                     {error}

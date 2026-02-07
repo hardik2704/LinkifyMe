@@ -46,6 +46,9 @@ class IntakeResponse(BaseModel):
     """Response after starting analysis."""
     
     unique_id: str
+    user_id: Optional[str] = None  # USR-XXXXX format
+    is_returning_user: bool = False
+    previous_attempts_count: int = 0
     message: str = "Analysis started"
     status: str = "pending"
 
@@ -55,10 +58,12 @@ class StatusResponse(BaseModel):
     
     unique_id: str
     customer_id: Optional[str] = None
+    attempt_id: Optional[str] = None  # ATT-LM-XXXXX-X format for report URL
     scrape_status: str
     payment_status: str
     current_step: str
     progress_percent: int
+    has_scores: bool = False  # True when AI scoring is complete
     error_message: Optional[str] = None
 
 
@@ -166,3 +171,64 @@ class DashboardStats(BaseModel):
     recent_jobs: list[dict[str, Any]]
     service_health: dict[str, str]
 
+
+# === User Account System Schemas ===
+
+class UserInfo(BaseModel):
+    """User account information."""
+    
+    user_id: str
+    linkedin_url: str
+    email: str
+    phone: Optional[str] = None
+    name: Optional[str] = None
+    total_attempts: int = 0
+    last_attempt_at: Optional[str] = None
+    created_at: Optional[str] = None
+
+
+class AttemptSummary(BaseModel):
+    """Summary of a single analysis attempt."""
+    
+    attempt_id: str
+    customer_id: str
+    final_score: int
+    timestamp: str
+    linkedin_url: str
+    first_name: Optional[str] = None
+    status: Optional[str] = None
+
+
+class UserAttemptsResponse(BaseModel):
+    """Response for user's attempt history."""
+    
+    user: UserInfo
+    attempts: list[AttemptSummary]
+
+
+class ScoreComparison(BaseModel):
+    """Comparison of a single section between two attempts."""
+    
+    section: str
+    current_score: int
+    previous_score: int
+    delta: int  # positive or negative
+    change_direction: Literal["improved", "declined", "unchanged"]
+
+
+class ComparisonResponse(BaseModel):
+    """Response for comparing two attempts."""
+    
+    current_attempt: AttemptSummary
+    previous_attempt: AttemptSummary
+    overall_delta: int
+    sections: list[ScoreComparison]
+    summary: str
+
+
+class UserLookupResponse(BaseModel):
+    """Response for user lookup."""
+    
+    found: bool
+    user: Optional[UserInfo] = None
+    message: str

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { Camera, Image, Type, Users, UserPlus, User, Briefcase, GraduationCap, Award, Wrench, CheckCircle, Crown } from "lucide-react";
 import { PageShell } from "@/components/layout/PageShell";
@@ -84,22 +85,33 @@ const defaultReport = {
 };
 
 export default function ReportPage() {
+    const searchParams = useSearchParams();
     const [activeSection, setActiveSection] = useState("headline");
     const [report, setReport] = useState<ReportData>(defaultReport as ReportData);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const fetchReport = async () => {
-            const customerId = sessionStorage.getItem("linkify_customer_id");
+            // Try URL param first (shareable links), then sessionStorage
+            // attempt_id is primary, customer_id is fallback for backward compatibility
+            const attemptId = searchParams.get("attempt_id") || sessionStorage.getItem("linkify_attempt_id");
+            const customerId = searchParams.get("customer_id") || sessionStorage.getItem("linkify_customer_id");
 
-            if (!customerId) {
+            // Use attempt_id if available, otherwise fall back to customer_id
+            const reportId = attemptId || customerId;
+
+            if (!reportId) {
                 // Use demo data
                 setLoading(false);
                 return;
             }
 
+            // Store in sessionStorage for consistency
+            if (attemptId) sessionStorage.setItem("linkify_attempt_id", attemptId);
+
             try {
-                const response = await fetch(`${API_BASE}/api/report/${customerId}`);
+                // API can accept either attempt_id or customer_id
+                const response = await fetch(`${API_BASE}/api/report/${reportId}`);
 
                 if (response.ok) {
                     const data = await response.json();
@@ -114,7 +126,7 @@ export default function ReportPage() {
         };
 
         fetchReport();
-    }, []);
+    }, [searchParams]);
 
     const sidebarSections = report.sections.map((s) => ({
         id: s.id,

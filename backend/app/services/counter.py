@@ -18,6 +18,7 @@ from app.services.sheets import get_sheets_service
 COUNTER_SHEET_NAME = "Counter"
 COUNTER_CELL = "A1"
 LOCK_CELL = "B1"
+USER_COUNTER_CELL = "A3"  # Separate counter for User IDs
 
 
 class CustomerIdCounter:
@@ -48,11 +49,13 @@ class CustomerIdCounter:
         except gspread.WorksheetNotFound:
             # Create the counter sheet with initial value
             sheet = spreadsheet.add_worksheet(COUNTER_SHEET_NAME, rows=10, cols=5)
-            sheet.update_cell(1, 1, "0")  # Counter value
+            sheet.update_cell(1, 1, "0")  # Customer Counter value
             sheet.update_cell(1, 2, "")   # Lock cell
             sheet.update_cell(1, 3, "Last Updated")
-            sheet.update_cell(2, 1, "Counter Value")
+            sheet.update_cell(2, 1, "Customer Counter")
             sheet.update_cell(2, 2, "Lock")
+            sheet.update_cell(3, 1, "0")  # User Counter value
+            sheet.update_cell(4, 1, "User Counter")
             return sheet
     
     def get_next_id(self) -> str:
@@ -94,8 +97,82 @@ class CustomerIdCounter:
         return int(value) if value else 0
 
 
-# Singleton instance
+class UserIdCounter:
+    """
+    Atomic counter for generating sequential User IDs.
+    
+    Uses same sheet as CustomerIdCounter but different row.
+    Format: USR-00001
+    """
+    
+    PREFIX = "USR"
+    
+    def __init__(self):
+        self._sheets_service = get_sheets_service()
+    
+    def _get_counter_sheet(self) -> gspread.Worksheet:
+        """Get or create the counter sheet."""
+        spreadsheet = self._sheets_service._get_spreadsheet()
+        
+        try:
+            sheet = spreadsheet.worksheet(COUNTER_SHEET_NAME)
+            # Ensure user counter row exists
+            try:
+                sheet.acell(USER_COUNTER_CELL).value
+            except:
+                sheet.update_cell(3, 1, "0")
+                sheet.update_cell(4, 1, "User Counter")
+            return sheet
+        except gspread.WorksheetNotFound:
+            # Create the counter sheet with initial values
+            sheet = spreadsheet.add_worksheet(COUNTER_SHEET_NAME, rows=10, cols=5)
+            sheet.update_cell(1, 1, "0")  # Customer Counter
+            sheet.update_cell(2, 1, "Customer Counter")
+            sheet.update_cell(3, 1, "0")  # User Counter
+            sheet.update_cell(4, 1, "User Counter")
+            return sheet
+    
+    def get_next_id(self) -> str:
+        """
+        Get the next User ID atomically.
+        Returns formatted ID like "USR-00001".
+        """
+        sheet = self._get_counter_sheet()
+        
+        max_retries = 5
+        for attempt in range(max_retries):
+            try:
+                # Read current user counter value (row 3)
+                current_value = sheet.acell(USER_COUNTER_CELL).value
+                current_count = int(current_value) if current_value else 0
+                
+                # Increment
+                new_count = current_count + 1
+                
+                # Write back
+                sheet.update_cell(3, 1, str(new_count))
+                sheet.update_cell(3, 3, datetime.utcnow().isoformat())
+                
+                # Format ID with zero-padding
+                return f"{self.PREFIX}-{new_count:05d}"
+                
+            except Exception as e:
+                if attempt == max_retries - 1:
+                    raise RuntimeError(f"Failed to generate User ID after {max_retries} attempts: {e}")
+                continue
+        
+        raise RuntimeError("Failed to generate User ID")
+    
+    def get_current_count(self) -> int:
+        """Get the current user counter value without incrementing."""
+        sheet = self._get_counter_sheet()
+        value = sheet.acell(USER_COUNTER_CELL).value
+        return int(value) if value else 0
+
+
+# Singleton instances
 _counter: Optional[CustomerIdCounter] = None
+_user_counter: Optional[UserIdCounter] = None
 
 
 def get_customer_id_counter() -> CustomerIdCounter:
@@ -104,3 +181,11 @@ def get_customer_id_counter() -> CustomerIdCounter:
     if _counter is None:
         _counter = CustomerIdCounter()
     return _counter
+
+
+def get_user_id_counter() -> UserIdCounter:
+    """Get the singleton UserIdCounter instance."""
+    global _user_counter
+    if _user_counter is None:
+        _user_counter = UserIdCounter()
+    return _user_counter

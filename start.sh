@@ -3,6 +3,15 @@
 # LinkifyMe - Server Startup Script
 # Usage: ./start.sh [backend|frontend|both]
 
+
+"""
+# Terminal 1 - Backend
+cd backend && source venv/bin/activate
+python3 -m uvicorn app.main:app --reload
+
+# Terminal 2 - Frontend  
+cd frontend && npm run dev
+"""
 PROJECT_DIR="/Users/hardik/AI/Deployable/LinkifyMe"
 
 start_backend() {
