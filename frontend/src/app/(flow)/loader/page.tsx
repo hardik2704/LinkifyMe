@@ -30,6 +30,12 @@ const TIPS = [
     "Adding 5+ skills increases your profile views by 17x.",
     "A customized LinkedIn URL looks more professional.",
     "Profiles with a summary are 10x more likely to be viewed.",
+    "Recommendations boost your credibility by 70% to recruiters.",
+    "Profiles with a location specified appear 23x more in searches.",
+    "Using industry-specific keywords can double your visibility.",
+    "A cover photo makes your profile 11x more likely to be viewed.",
+    "Active profiles get 10x more opportunities than passive ones.",
+    "Profiles with a current position get 5x more connection requests.",
 ];
 
 export default function LoaderPage() {
@@ -129,14 +135,18 @@ export default function LoaderPage() {
                 }
 
                 // Update step based on status
-                if (status.current_step === "scoring") {
+                if (status.current_step === "scoring" || status.ai_status === "scoring") {
                     setCurrentStep(2);
                     setStatusMessage("Running AI Analysis...");
+                } else if (status.scrape_status === "completed" && !status.ai_status) {
+                    // Scrape done, AI about to start
+                    setCurrentStep(2);
+                    setStatusMessage("Starting AI Analysis...");
                 } else if (status.current_step === "scraping" || status.scrape_status === "scraping") {
                     setCurrentStep(1);
                     setStatusMessage("Scraping Your LinkedIn...");
                 } else if (status.current_step === "payment" || status.payment_status === "succeeded") {
-                    setCurrentStep(0);
+                    setCurrentStep(1);
                     setStatusMessage("Starting Scrape...");
                 } else {
                     setCurrentStep(0);
@@ -277,26 +287,40 @@ export default function LoaderPage() {
                             </motion.div>
                         </AnimatePresence>
 
-                        {/* Tip Card */}
-                        <div className="rounded-2xl bg-slate-50 border border-slate-100 p-4">
-                            <div className="flex items-start gap-3">
-                                <Lightbulb className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
-                                <div className="text-left">
-                                    <p className="text-xs font-semibold text-amber-600 uppercase tracking-wider mb-1">
-                                        DID YOU KNOW?
+                        {/* Did You Know Card - Enhanced for better readability */}
+                        <div className="rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200/50 p-6 shadow-sm">
+                            <div className="flex items-start gap-4">
+                                <div className="flex-shrink-0 w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center">
+                                    <Lightbulb className="h-6 w-6 text-amber-600" />
+                                </div>
+                                <div className="text-left flex-1">
+                                    <p className="text-sm font-bold text-amber-700 uppercase tracking-wider mb-2">
+                                        💡 DID YOU KNOW?
                                     </p>
                                     <AnimatePresence mode="wait">
                                         <motion.p
                                             key={tipIndex}
-                                            initial={{ opacity: 0 }}
-                                            animate={{ opacity: 1 }}
-                                            exit={{ opacity: 0 }}
-                                            className="text-sm text-slate-600"
+                                            initial={{ opacity: 0, y: 10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            exit={{ opacity: 0, y: -10 }}
+                                            className="text-base text-slate-700 font-medium leading-relaxed"
                                         >
                                             {TIPS[tipIndex]}
                                         </motion.p>
                                     </AnimatePresence>
                                 </div>
+                            </div>
+                            {/* Tip progress dots */}
+                            <div className="flex justify-center gap-1.5 mt-4">
+                                {TIPS.map((_, idx) => (
+                                    <div
+                                        key={idx}
+                                        className={`w-2 h-2 rounded-full transition-all duration-300 ${idx === tipIndex
+                                                ? "bg-amber-500 scale-125"
+                                                : "bg-amber-200"
+                                            }`}
+                                    />
+                                ))}
                             </div>
                         </div>
                     </GlassPanel>

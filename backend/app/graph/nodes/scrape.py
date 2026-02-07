@@ -21,6 +21,9 @@ def start_scrape(state: LinkifyState) -> LinkifyState:
     Input: linkedin_url, pi_row
     Output: apify_run_id, scrape_attempt incremented
     """
+    # Import routes to update cache for real-time status updates
+    from app.api.routes import _status_cache
+    
     sheets = get_sheets_service()
     apify = get_apify_service()
     
@@ -78,7 +81,7 @@ def start_scrape(state: LinkifyState) -> LinkifyState:
         "message": f"Apify run started: {apify_run_id}",
     })
     
-    return {
+    updated_state = {
         **state,
         "apify_run_id": apify_run_id,
         "apify_status": apify_status,
@@ -86,6 +89,13 @@ def start_scrape(state: LinkifyState) -> LinkifyState:
         "scrape_status": "scraping",
         "activity_log": activity_log,
     }
+    
+    # Update cache for real-time status polling
+    unique_id = state.get("unique_id")
+    if unique_id:
+        _status_cache[unique_id] = updated_state
+    
+    return updated_state
 
 
 def poll_apify(state: LinkifyState) -> LinkifyState:
@@ -148,11 +158,21 @@ def fetch_dataset(state: LinkifyState) -> LinkifyState:
     
     Input: apify_run_id
     Output: scraped_profile populated
+    
+    Includes retry logic for empty datasets (common with LinkedIn scrapers).
     """
+    # Import routes to update cache for real-time status updates
+    from app.api.routes import _status_cache
+    from app.services.logger import log_warning, log_info
+    
     apify = get_apify_service()
     sheets = get_sheets_service()
     
     apify_run_id = state.get("apify_run_id")
+    linkedin_url = state.get("linkedin_url", "")
+    scrape_attempt = state.get("scrape_attempt", 1)
+    max_retries = 3
+    
     if not apify_run_id:
         return {**state, "scrape_status": "failed", "error_message": "No Apify run ID"}
     
@@ -168,7 +188,51 @@ def fetch_dataset(state: LinkifyState) -> LinkifyState:
         items = asyncio.run(apify.get_dataset_items(dataset_id))
         
         if not items:
-            raise ValueError("No profile data in dataset")
+            # Empty dataset - common with LinkedIn scrapers
+            # Check if we can retry
+            if scrape_attempt < max_retries:
+                log_warning("scrape", f"Empty dataset returned (attempt {scrape_attempt}/{max_retries}), retrying scrape", {
+                    "dataset_id": dataset_id,
+                    "linkedin_url": linkedin_url,
+                })
+                
+                # Wait a bit before retrying
+                import time
+                time.sleep(5)
+                
+                # Start a new scrape
+                try:
+                    new_run_info = asyncio.run(apify.start_scrape(linkedin_url))
+                    new_run_id = new_run_info["run_id"]
+                    
+                    # Poll for completion
+                    new_final_status = asyncio.run(apify.poll_until_complete(new_run_id))
+                    
+                    if new_final_status["status"] == "SUCCEEDED":
+                        new_dataset_id = new_final_status.get("default_dataset_id")
+                        if new_dataset_id:
+                            new_items = asyncio.run(apify.get_dataset_items(new_dataset_id))
+                            if new_items:
+                                log_info("scrape", f"Retry succeeded on attempt {scrape_attempt + 1}", {
+                                    "linkedin_url": linkedin_url,
+                                })
+                                items = new_items
+                                apify_run_id = new_run_id
+                                dataset_id = new_dataset_id
+                            else:
+                                # Update attempt counter and fail if we've exhausted retries
+                                return {
+                                    **state,
+                                    "scrape_attempt": scrape_attempt + 1,
+                                    "error_message": f"Empty dataset after retry attempt {scrape_attempt + 1}",
+                                    "scrape_status": "failed" if scrape_attempt + 1 >= max_retries else "retrying",
+                                }
+                except Exception as retry_error:
+                    log_warning("scrape", f"Retry attempt failed: {str(retry_error)}")
+                    # Fall through to fail with original error
+            
+            if not items:
+                raise ValueError(f"No profile data in dataset after {scrape_attempt} attempt(s). LinkedIn may have blocked the scrape.")
         
         scraped_profile = items[0]
         
@@ -266,9 +330,16 @@ def fetch_dataset(state: LinkifyState) -> LinkifyState:
         "message": f"Profile data fetched successfully",
     })
     
-    return {
+    updated_state = {
         **state,
         "scraped_profile": scraped_profile,
         "scrape_status": "completed",
         "activity_log": activity_log,
     }
+    
+    # Update cache for real-time status polling
+    unique_id = state.get("unique_id")
+    if unique_id:
+        _status_cache[unique_id] = updated_state
+    
+    return updated_state

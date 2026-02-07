@@ -19,8 +19,20 @@ def ai_scoring(state: LinkifyState) -> LinkifyState:
     Input: scraped_profile, target_group, linkedin_url
     Output: scores with section scores and reasonings
     """
+    # Import routes to update cache for real-time status updates
+    from app.api.routes import _status_cache
+    
     sheets = get_sheets_service()
     scoring_service = get_scoring_service()
+    
+    # Update cache immediately to indicate AI scoring has started
+    unique_id = state.get("unique_id")
+    if unique_id:
+        _status_cache[unique_id] = {
+            **state,
+            "ai_scoring_status": "scoring",  # Intermediate status
+            "scrape_status": "completed",
+        }
     
     scraped_profile = state.get("scraped_profile")
     if not scraped_profile:

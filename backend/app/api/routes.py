@@ -182,6 +182,10 @@ async def get_status(unique_id: str, force_sheets: bool = False):
     elif scrape_status == "completed" and ai_status == "completed":
         current_step = "complete"
         progress = 100
+    elif ai_status == "scoring":
+        # AI scoring in progress
+        current_step = "scoring"
+        progress = 75
     elif ai_status:
         current_step = "scoring"
         progress = 80
