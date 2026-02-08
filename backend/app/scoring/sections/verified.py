@@ -1,7 +1,7 @@
 """
 Verified Badge Scorer
 
-Simple presence check - 10 if verified, 4 if not.
+Simple presence check - 10 if verified, 0 if not.
 Configurable thresholds.
 """
 
@@ -17,7 +17,7 @@ class VerifiedScorer(BaseSectionScorer):
     
     # Configurable scores
     VERIFIED_SCORE = 10.0
-    NOT_VERIFIED_SCORE = 4.0
+    NOT_VERIFIED_SCORE = 0.0
     
     def score(self, profile: dict) -> dict:
         is_verified = is_true(profile.get("isVerified", False))

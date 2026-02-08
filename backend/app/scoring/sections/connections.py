@@ -16,15 +16,17 @@ class ConnectionsScorer(BaseSectionScorer):
     
     # Thresholds: (min_count, score)
     THRESHOLDS = [
-        (0, 1.0),
-        (50, 3.0),
-        (100, 4.0),
-        (150, 5.0),
-        (250, 6.0),
-        (350, 7.0),
-        (500, 8.5),
-        (750, 9.5),
-        (1000, 10.0),  # 500+ is typically shown as "500+"
+        (0, 0.0),
+        (50, 1.0),
+        (100, 2.0),
+        (150, 3.0),
+        (250, 4.0),
+        (350, 5.0),
+        (500, 6.0), # 500+ is typically shown as "500+"
+        (1000, 7.0),  
+        (2000, 8.0),
+        (5000, 9.0),
+        (10000, 10.0),
     ]
     
     def score(self, profile: dict) -> dict:
@@ -37,11 +39,11 @@ class ConnectionsScorer(BaseSectionScorer):
         score = map_count_to_score(count, self.THRESHOLDS)
         
         reasons = []
-        if count >= 500:
-            reasons.append(f"Strong network ({count}+ connections)")
-        elif count >= 200:
+        if count >= 1000:
+            reasons.append(f"Strong network ({count} connections)")
+        elif count >= 500:
             reasons.append(f"Growing network ({count} connections)")
-        elif count >= 50:
+        elif count >= 300:
             reasons.append(f"Building network ({count} connections)")
         else:
             reasons.append(f"Limited network ({count} connections)")

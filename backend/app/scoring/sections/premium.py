@@ -1,7 +1,7 @@
 """
 Premium Account Scorer
 
-Simple presence check - 8 if premium, 5 if not.
+Simple presence check - 10 if premium, 0 if not.
 Low weight generally but can matter for VCs.
 """
 
@@ -16,8 +16,8 @@ class PremiumScorer(BaseSectionScorer):
     display_name = "Is Premium Score"
     
     # Configurable scores
-    PREMIUM_SCORE = 8.0
-    NOT_PREMIUM_SCORE = 5.0
+    PREMIUM_SCORE = 10.0
+    NOT_PREMIUM_SCORE = 0.0
     
     def score(self, profile: dict) -> dict:
         is_premium = is_true(profile.get("premium", False))
