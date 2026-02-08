@@ -11,10 +11,14 @@ import {
 // ============================================================================
 // BUTTON COMPONENT
 // ============================================================================
-interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+interface ButtonProps {
     variant?: "primary" | "secondary" | "outline" | "ghost";
     size?: "sm" | "md" | "lg";
     children: React.ReactNode;
+    className?: string;
+    onClick?: () => void;
+    disabled?: boolean;
+    type?: "button" | "submit" | "reset";
 }
 
 const Button: React.FC<ButtonProps> = ({
@@ -22,7 +26,9 @@ const Button: React.FC<ButtonProps> = ({
     variant = "primary",
     size = "md",
     children,
-    ...props
+    onClick,
+    disabled,
+    type = "button",
 }) => {
     const ref = useRef<HTMLButtonElement>(null);
     const [position, setPosition] = useState({ x: 0, y: 0 });
@@ -55,12 +61,14 @@ const Button: React.FC<ButtonProps> = ({
     return (
         <motion.button
             ref={ref}
+            type={type}
+            disabled={disabled}
+            onClick={onClick}
             onMouseMove={handleMouseMove}
             onMouseLeave={handleMouseLeave}
             animate={{ x: position.x, y: position.y }}
             transition={{ type: "spring", stiffness: 150, damping: 15, mass: 0.1 }}
             className={`relative rounded-full font-medium transition-colors duration-200 cursor-pointer overflow-hidden group ${variants[variant]} ${sizes[size]} ${className}`}
-            {...props}
         >
             <span className="relative z-10 flex items-center justify-center gap-2">
                 {children}
@@ -98,8 +106,8 @@ const Navbar: React.FC = () => {
                 <motion.div
                     layout
                     className={`relative flex items-center justify-between px-6 transition-all duration-300 ${isScrolled
-                            ? "w-[90%] md:w-[60%] lg:w-[50%] h-16 bg-white/70 backdrop-blur-xl border border-black/5 rounded-full shadow-lg"
-                            : "w-full max-w-7xl h-20 bg-transparent border-transparent"
+                        ? "w-[90%] md:w-[60%] lg:w-[50%] h-16 bg-white/70 backdrop-blur-xl border border-black/5 rounded-full shadow-lg"
+                        : "w-full max-w-7xl h-20 bg-transparent border-transparent"
                         }`}
                 >
                     {/* Logo */}
