@@ -282,41 +282,41 @@ class GoogleSheetsService:
         """
         Get all scoring attempts for a user.
         Returns list of attempt summaries sorted by timestamp (newest first).
+        
+        Profile Scoring columns (0-indexed):
+        - Column 0: User ID
+        - Column 1: Attempt ID
+        - Column 2: LinkedIn URL
+        - Column 3: First Name
+        ...
+        - Column 16: Final Score
+        - Column 28: Timestamp
+        - Column 29: Status
         """
         attempts = []
         
         try:
-            # Get all Profile Scoring rows for this user
+            # Get all Profile Scoring rows
             scoring_sheet = self._get_sheet(SHEET_PROFILE_SCORING)
             all_values = scoring_sheet.get_all_values()
             
-            # Also get Profile Info for additional context
-            pi_sheet = self._get_sheet(SHEET_PROFILE_INFO)
-            pi_values = pi_sheet.get_all_values()
-            
-            # Build a map of customer_id -> user_id from Profile Info
-            # Column 0 = Customer ID, Column 25 (index 25) = User ID (if exists)
-            customer_to_user = {}
-            for row in pi_values[1:]:  # Skip header
-                if len(row) > 25 and row[25]:  # User ID column exists
-                    customer_to_user[row[0]] = row[25]
-            
-            # Find all scoring entries for this user
+            # Find all scoring entries where column 0 (User ID) matches
             for idx, row in enumerate(all_values[1:], start=2):  # Skip header
-                if len(row) < 17:
+                if len(row) < 2:
                     continue
-                    
-                customer_id = row[0]
-                # Check if this customer_id belongs to this user
-                if customer_to_user.get(customer_id) == user_id:
+                
+                row_user_id = row[0]  # Column 0 = User ID
+                
+                # Match by user_id directly
+                if row_user_id == user_id:
                     attempts.append({
-                        "attempt_id": row[1] if len(row) > 1 else "",
-                        "customer_id": customer_id,
-                        "linkedin_url": row[2] if len(row) > 2 else "",
-                        "first_name": row[3] if len(row) > 3 else "",
-                        "final_score": int(row[16]) if len(row) > 16 and row[16] else 0,
-                        "timestamp": row[28] if len(row) > 28 else "",
-                        "status": row[29] if len(row) > 29 else "",
+                        "attempt_id": row[1] if len(row) > 1 else "",  # Column 1 = Attempt ID
+                        "customer_id": row[1] if len(row) > 1 else "",  # Use attempt_id as customer_id for backwards compatibility
+                        "linkedin_url": row[2] if len(row) > 2 else "",  # Column 2
+                        "first_name": row[3] if len(row) > 3 else "",  # Column 3
+                        "final_score": int(row[16]) if len(row) > 16 and row[16] else 0,  # Column 16
+                        "timestamp": row[28] if len(row) > 28 else "",  # Column 28
+                        "status": row[29] if len(row) > 29 else "",  # Column 29
                     })
             
             # Sort by timestamp descending (newest first)
