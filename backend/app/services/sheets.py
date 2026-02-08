@@ -283,41 +283,78 @@ class GoogleSheetsService:
         Get all scoring attempts for a user.
         Returns list of attempt summaries sorted by timestamp (newest first).
         
+        Matches by:
+        1. User ID in column 0 (primary match)
+        2. LinkedIn URL match for legacy data without user_id (fallback)
+        
         Profile Scoring columns (0-indexed):
         - Column 0: User ID
         - Column 1: Attempt ID
         - Column 2: LinkedIn URL
         - Column 3: First Name
-        ...
         - Column 16: Final Score
         - Column 28: Timestamp
         - Column 29: Status
         """
         attempts = []
+        seen_attempt_ids = set()  # Track to avoid duplicates
         
         try:
+            # First, get the user's LinkedIn URL from Users sheet for fallback matching
+            users_sheet = self._get_sheet(SHEET_USERS)
+            users_values = users_sheet.get_all_values()
+            user_linkedin_url = None
+            
+            for row in users_values[1:]:  # Skip header
+                if len(row) > 1 and row[0] == user_id:
+                    user_linkedin_url = row[1].lower().rstrip('/') if row[1] else None
+                    break
+            
             # Get all Profile Scoring rows
             scoring_sheet = self._get_sheet(SHEET_PROFILE_SCORING)
             all_values = scoring_sheet.get_all_values()
             
-            # Find all scoring entries where column 0 (User ID) matches
+            # Find all scoring entries for this user
             for idx, row in enumerate(all_values[1:], start=2):  # Skip header
-                if len(row) < 2:
+                if len(row) < 3:
                     continue
                 
                 row_user_id = row[0]  # Column 0 = User ID
+                row_linkedin = row[2].lower().rstrip('/') if len(row) > 2 and row[2] else ""
+                attempt_id = row[1] if len(row) > 1 else ""
                 
-                # Match by user_id directly
-                if row_user_id == user_id:
+                # Match by user_id (primary) OR by LinkedIn URL (fallback for legacy data without user_id)
+                matches_user_id = row_user_id == user_id
+                
+                # Only use LinkedIn fallback for legacy rows that have no user_id
+                # Use exact match (after normalization) to avoid false positives
+                matches_linkedin = (
+                    not row_user_id and  # Only fallback for rows without user_id
+                    user_linkedin_url and 
+                    row_linkedin and 
+                    user_linkedin_url == row_linkedin  # Exact match
+                )
+                
+                if matches_user_id or matches_linkedin:
+                    # Skip if we already have this attempt (prefer user_id match)
+                    if attempt_id and attempt_id in seen_attempt_ids:
+                        continue
+                    
+                    # For rows without attempt_id, generate one from row index
+                    display_attempt_id = attempt_id if attempt_id else f"LEGACY-{idx}"
+                    
                     attempts.append({
-                        "attempt_id": row[1] if len(row) > 1 else "",  # Column 1 = Attempt ID
-                        "customer_id": row[1] if len(row) > 1 else "",  # Use attempt_id as customer_id for backwards compatibility
-                        "linkedin_url": row[2] if len(row) > 2 else "",  # Column 2
-                        "first_name": row[3] if len(row) > 3 else "",  # Column 3
-                        "final_score": int(row[16]) if len(row) > 16 and row[16] else 0,  # Column 16
-                        "timestamp": row[28] if len(row) > 28 else "",  # Column 28
-                        "status": row[29] if len(row) > 29 else "",  # Column 29
+                        "attempt_id": display_attempt_id,
+                        "customer_id": display_attempt_id,  # For backwards compatibility
+                        "linkedin_url": row[2] if len(row) > 2 else "",
+                        "first_name": row[3] if len(row) > 3 else "",
+                        "final_score": int(row[16]) if len(row) > 16 and row[16] else 0,
+                        "timestamp": row[28] if len(row) > 28 else "",
+                        "status": row[29] if len(row) > 29 else "",
                     })
+                    
+                    if attempt_id:
+                        seen_attempt_ids.add(attempt_id)
             
             # Sort by timestamp descending (newest first)
             attempts.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
