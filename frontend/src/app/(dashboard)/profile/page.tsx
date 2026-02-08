@@ -190,7 +190,7 @@ export default function ProfilePage() {
                                     return (
                                         <Link
                                             key={attempt.attempt_id}
-                                            href={`/report?customer_id=${attempt.customer_id}`}
+                                            href={`/report?attempt_id=${attempt.attempt_id}`}
                                         >
                                             <motion.div
                                                 initial={{ opacity: 0, x: -20 }}
@@ -215,10 +215,10 @@ export default function ProfilePage() {
                                                 <div className="flex items-center gap-4">
                                                     {delta && (
                                                         <span className={`flex items-center gap-1 text-sm font-medium ${delta.direction === "up"
-                                                                ? "text-emerald-500"
-                                                                : delta.direction === "down"
-                                                                    ? "text-red-500"
-                                                                    : "text-slate-400"
+                                                            ? "text-emerald-500"
+                                                            : delta.direction === "down"
+                                                                ? "text-red-500"
+                                                                : "text-slate-400"
                                                             }`}>
                                                             {delta.direction === "up" && <TrendingUp className="h-4 w-4" />}
                                                             {delta.direction === "down" && <TrendingDown className="h-4 w-4" />}

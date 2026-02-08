@@ -3,13 +3,14 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { Camera, Image, Type, Users, UserPlus, User, Briefcase, GraduationCap, Award, Wrench, CheckCircle, Crown } from "lucide-react";
+import { Camera, Image, Type, Users, UserPlus, User, Briefcase, GraduationCap, Award, Wrench, CheckCircle, Crown, Share2, Check, Copy } from "lucide-react";
 import { PageShell } from "@/components/layout/PageShell";
 import { TopNav } from "@/components/layout/TopNav";
 import { Container } from "@/components/layout/Container";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { ExecutiveSummaryCard } from "@/components/report/ExecutiveSummaryCard";
 import { SectionScoreCard } from "@/components/report/SectionScoreCard";
+import { Button } from "@/components/ui/Button";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -89,6 +90,30 @@ export default function ReportPage() {
     const [activeSection, setActiveSection] = useState("headline");
     const [report, setReport] = useState<ReportData>(defaultReport as ReportData);
     const [loading, setLoading] = useState(true);
+    const [currentAttemptId, setCurrentAttemptId] = useState<string | null>(null);
+    const [copied, setCopied] = useState(false);
+
+    const handleShareReport = async () => {
+        if (!currentAttemptId) return;
+
+        const shareUrl = `${window.location.origin}/report?attempt_id=${currentAttemptId}`;
+
+        try {
+            await navigator.clipboard.writeText(shareUrl);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        } catch (err) {
+            // Fallback for older browsers
+            const textArea = document.createElement("textarea");
+            textArea.value = shareUrl;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand("copy");
+            document.body.removeChild(textArea);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        }
+    };
 
     useEffect(() => {
         const fetchReport = async () => {
@@ -106,8 +131,11 @@ export default function ReportPage() {
                 return;
             }
 
-            // Store in sessionStorage for consistency
-            if (attemptId) sessionStorage.setItem("linkify_attempt_id", attemptId);
+            // Store attempt ID for sharing
+            if (attemptId) {
+                setCurrentAttemptId(attemptId);
+                sessionStorage.setItem("linkify_attempt_id", attemptId);
+            }
 
             try {
                 // API can accept either attempt_id or customer_id
@@ -116,6 +144,10 @@ export default function ReportPage() {
                 if (response.ok) {
                     const data = await response.json();
                     setReport(data);
+                    // If we got a response with attempt_id, store it
+                    if (data.attempt_id) {
+                        setCurrentAttemptId(data.attempt_id);
+                    }
                 }
             } catch (err) {
                 console.error("Failed to fetch report:", err);
@@ -172,13 +204,26 @@ export default function ReportPage() {
                             className="space-y-8"
                         >
                             {/* Header */}
-                            <div>
-                                <h1 className="font-display text-3xl sm:text-4xl font-bold text-slate-900 mb-2">
-                                    Audit Results
-                                </h1>
-                                <p className="text-slate-600">
-                                    We&apos;ve analyzed <strong>{report.sections.length} key areas</strong> of your profile. Review the insights below to optimize your personal brand.
-                                </p>
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                                <div>
+                                    <h1 className="font-display text-3xl sm:text-4xl font-bold text-slate-900 mb-2">
+                                        Audit Results
+                                    </h1>
+                                    <p className="text-slate-600">
+                                        We&apos;ve analyzed <strong>{report.sections.length} key areas</strong> of your profile. Review the insights below to optimize your personal brand.
+                                    </p>
+                                </div>
+                                {currentAttemptId && (
+                                    <Button
+                                        variant="outline"
+                                        size="md"
+                                        onClick={handleShareReport}
+                                        leftIcon={copied ? <Check className="h-4 w-4 text-emerald-500" /> : <Share2 className="h-4 w-4" />}
+                                        className={copied ? "border-emerald-200 bg-emerald-50" : ""}
+                                    >
+                                        {copied ? "Link Copied!" : "Share Report"}
+                                    </Button>
+                                )}
                             </div>
 
                             {/* Executive Summary */}
