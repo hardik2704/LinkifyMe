@@ -137,24 +137,39 @@ export default function ReportPage() {
                 sessionStorage.setItem("linkify_attempt_id", attemptId);
             }
 
-            try {
-                // API can accept either attempt_id or customer_id
-                const response = await fetch(`${API_BASE}/api/report/${reportId}`);
+            let attempts = 0;
+            const maxAttempts = 3;
 
-                if (response.ok) {
-                    const data = await response.json();
-                    setReport(data);
-                    // If we got a response with attempt_id, store it
-                    if (data.attempt_id) {
-                        setCurrentAttemptId(data.attempt_id);
+            const fetchWithRetry = async () => {
+                try {
+                    const response = await fetch(`${API_BASE}/api/report/${reportId}`);
+                    if (response.ok) {
+                        const data = await response.json();
+
+                        // If overall_score is 0 but we have a profile name, it might be mid-write
+                        // Retry up to 3 times with a short delay
+                        if (data.overall_score === 0 && data.profile?.name && attempts < maxAttempts) {
+                            attempts++;
+                            console.log(`[Report] Got 0 score, retrying attempt ${attempts}/${maxAttempts}...`);
+                            setTimeout(fetchWithRetry, 2000); // 2s delay
+                            return;
+                        }
+
+                        setReport(data);
+                        if (data.attempt_id) {
+                            setCurrentAttemptId(data.attempt_id);
+                        }
+                    }
+                } catch (err) {
+                    console.error("Failed to fetch report:", err);
+                } finally {
+                    if (attempts === 0 || attempts >= maxAttempts) {
+                        setLoading(false);
                     }
                 }
-            } catch (err) {
-                console.error("Failed to fetch report:", err);
-                // Use default data on error
-            } finally {
-                setLoading(false);
-            }
+            };
+
+            fetchWithRetry();
         };
 
         fetchReport();
@@ -174,6 +189,20 @@ export default function ReportPage() {
         gradeLabel: report.grade_label,
         score: report.overall_score,
     };
+
+    if (loading) {
+        return (
+            <PageShell variant="dashboard">
+                <TopNav mode="dashboard" />
+                <Container className="flex items-center justify-center min-h-[60vh]">
+                    <div className="flex flex-col items-center gap-4">
+                        <div className="h-12 w-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+                        <p className="text-slate-600 font-medium">Generating your profile report...</p>
+                    </div>
+                </Container>
+            </PageShell>
+        );
+    }
 
     return (
         <PageShell variant="dashboard">

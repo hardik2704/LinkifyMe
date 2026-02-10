@@ -187,19 +187,19 @@ async def get_status(unique_id: str, force_sheets: bool = False):
             error_message="Analysis not found in cache. Try force_sheets=true to check storage.",
         )
     
-    # Calculate progress
     scrape_status = state.get("scrape_status", "pending")
     payment_status = state.get("payment_status", "pending")
     ai_status = state.get("ai_scoring_status", "")
     error_message = state.get("error_message")
-    has_scores = state.get("scores") is not None  # Check if scoring completed
+    has_scores = state.get("scores") is not None
+    persistence_status = state.get("persistence_status", "")
     
     # Determine current step and progress
     if scrape_status == "failed":
         current_step = "failed"
         progress = 0
-    elif (scrape_status == "completed" and ai_status == "completed") or has_scores:
-        # Complete when we have scores OR ai_status says completed
+    elif (scrape_status == "completed" and ai_status == "completed" and persistence_status == "completed"):
+        # Complete ONLY when AI is done AND persistence is finished
         current_step = "complete"
         progress = 100
     elif ai_status == "scoring":
@@ -291,7 +291,7 @@ async def get_report(report_id: str):
     sections = []
     
     # Helper to determine status
-    def get_status(score: int, max_score: int) -> str:
+    def get_status(score: float, max_score: int) -> str:
         ratio = score / max_score if max_score > 0 else 0
         if ratio >= 0.7:
             return "optimized"

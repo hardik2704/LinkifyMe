@@ -8,8 +8,8 @@ import re
 from typing import Any
 
 
-def clamp(value: float, min_val: float = 1.0, max_val: float = 10.0) -> float:
-    """Clamp a value to the 1-10 range and round to 1 decimal."""
+def clamp(value: float, min_val: float = 0.0, max_val: float = 10.0) -> float:
+    """Clamp a value to the 0-10 range and round to 1 decimal."""
     clamped = max(min_val, min(max_val, value))
     return round(clamped, 1)
 

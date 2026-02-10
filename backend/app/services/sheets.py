@@ -518,7 +518,9 @@ class GoogleSheetsService:
         sheet = self._get_sheet(SHEET_PROFILE_INFO)
         all_values = sheet.get_all_values()
         
-        for idx, row in enumerate(all_values):
+        # Iterate backwards to find the LATEST profile if duplicates exist
+        for idx in range(len(all_values) - 1, -1, -1):
+            row = all_values[idx]
             if row and row[0] == unique_id:
                 return (idx + 1, self.get_profile_info(idx + 1))
         
@@ -627,14 +629,17 @@ class GoogleSheetsService:
         while len(values) < 31:
             values.append("")
         
-        def safe_int(val):
-            """Convert to int safely, return 0 for empty/invalid."""
+        def safe_float(val):
+            """Convert to float safely, return 0.0 for empty/invalid."""
             if not val:
-                return 0
+                return 0.0
             try:
-                return int(float(val))
+                # Handle cases where value might be a string with commas or other formatting
+                if isinstance(val, str):
+                    val = val.replace(',', '')
+                return float(val)
             except (ValueError, TypeError):
-                return 0
+                return 0.0
         
         return {
             # Basic info (columns 1-4)
@@ -643,19 +648,19 @@ class GoogleSheetsService:
             "linkedin_url": values[2],
             "first_name": values[3],
             # Section scores (columns 5-17)
-            "headline_score": safe_int(values[4]),
-            "connection_score": safe_int(values[5]),
-            "follower_score": safe_int(values[6]),
-            "about_score": safe_int(values[7]),
-            "profile_pic_score": safe_int(values[8]),
-            "cover_picture_score": safe_int(values[9]),
-            "experience_score": safe_int(values[10]),
-            "education_score": safe_int(values[11]),
-            "skills_score": safe_int(values[12]),
-            "licenses_certs_score": safe_int(values[13]),
-            "verified_score": safe_int(values[14]),
-            "premium_score": safe_int(values[15]),
-            "final_score": safe_int(values[16]),
+            "headline_score": safe_float(values[4]),
+            "connection_score": safe_float(values[5]),
+            "follower_score": safe_float(values[6]),
+            "about_score": safe_float(values[7]),
+            "profile_pic_score": safe_float(values[8]),
+            "cover_picture_score": safe_float(values[9]),
+            "experience_score": safe_float(values[10]),
+            "education_score": safe_float(values[11]),
+            "skills_score": safe_float(values[12]),
+            "licenses_certs_score": safe_float(values[13]),
+            "verified_score": safe_float(values[14]),
+            "premium_score": safe_float(values[15]),
+            "final_score": safe_float(values[16]),
             # Section reasonings (columns 18-28)
             "headline_reasoning": values[17],
             "connection_reasoning": values[18],
@@ -673,8 +678,8 @@ class GoogleSheetsService:
             "completion_status": values[29],
             "remarks": values[30],
             # Computed fields for backward compatibility
-            "overall_score": safe_int(values[16]),  # Same as final_score
-            "profile_photo_score": safe_int(values[8]),  # Alias for profile_pic_score
+            "overall_score": safe_float(values[16]),  # Same as final_score
+            "profile_photo_score": safe_float(values[8]),  # Alias for profile_pic_score
         }
     
     def find_scoring_by_user_id(self, user_id: str) -> Optional[tuple[int, dict]]:
@@ -682,7 +687,9 @@ class GoogleSheetsService:
         sheet = self._get_sheet(SHEET_PROFILE_SCORING)
         all_values = sheet.get_all_values()
         
-        for idx, row in enumerate(all_values):
+        # Iterate backwards to find the LATEST scoring record
+        for idx in range(len(all_values) - 1, -1, -1):
+            row = all_values[idx]
             if row and row[0] == user_id:
                 return (idx + 1, self.get_profile_scoring(idx + 1))
         
@@ -691,16 +698,18 @@ class GoogleSheetsService:
     def get_scores_by_attempt_id(self, attempt_id: str) -> Optional[dict]:
         """
         Find scoring data by attempt_id.
-        
         Returns scoring dict if found, None otherwise.
+        Iterates backwards to ensure the LATEST attempt is found if IDs are duplicated.
         """
         sheet = self._get_sheet(SHEET_PROFILE_SCORING)
         all_values = sheet.get_all_values()
         
-        # Column 2 (index 1) is Attempt ID
-        for idx, row in enumerate(all_values[1:], start=2):  # Skip header
+        # Iterate backwards through rows (skip header which is at index 0)
+        for idx in range(len(all_values) - 1, 0, -1):
+            row = all_values[idx]
+            # Column 2 (index 1) is Attempt ID
             if len(row) > 1 and row[1] == attempt_id:
-                return self.get_profile_scoring(idx)
+                return self.get_profile_scoring(idx + 1)
         
         return None
     

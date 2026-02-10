@@ -72,7 +72,7 @@ class SectionScore(BaseModel):
     
     id: str
     title: str
-    score: int
+    score: float
     max_score: int
     status: Literal["optimized", "needs_improvement", "critical"]
     current_status: Optional[str] = None
@@ -86,7 +86,7 @@ class ReportResponse(BaseModel):
     
     customer_id: str
     profile: dict[str, Any]
-    overall_score: int
+    overall_score: float
     grade_label: str
     executive_summary: str
     sections: list[SectionScore]

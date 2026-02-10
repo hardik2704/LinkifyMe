@@ -64,6 +64,7 @@ class LinkifyState(TypedDict, total=False):
     scores: Optional[dict[str, Any]]
     executive_summary: Optional[str]
     ai_scoring_status: Optional[str]
+    persistence_status: Optional[str]
     section_scores: Optional[dict[str, int]]
     section_analyses: Optional[dict[str, str]]
     ai_rewrites: Optional[dict[str, str]]

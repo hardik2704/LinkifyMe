@@ -1,0 +1,6 @@
+<svg width="200" height="50" viewBox="0 0 200 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <text x="0" y="38" font-family="'Outfit', sans-serif" font-weight="bold" font-size="36" fill="#020617" letter-spacing="-1">
+    Linkify<tspan fill="#2563eb">Me</tspan>
+  </text>
+  <!-- Simple dot accent if needed, matching the previous 'linki.' style, but user just wanted the text -->
+</svg>

@@ -176,4 +176,5 @@ def write_scores(state: LinkifyState) -> LinkifyState:
         **state,
         "final_weighted_score": final_weighted_score,
         "activity_log": activity_log,
+        "persistence_status": "completed",
     }

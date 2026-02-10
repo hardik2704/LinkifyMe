@@ -19,7 +19,7 @@ class LicensesCertsScorer(BaseSectionScorer):
         signals = {}
         
         if not certs:
-            return self._result(3.0, ["No certifications listed"], signals)
+            return self._result(1.0, ["No certifications listed"], signals)
         
         score = 1.0
         cert_count = len(certs)
