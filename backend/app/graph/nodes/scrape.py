@@ -145,11 +145,18 @@ def poll_apify(state: LinkifyState) -> LinkifyState:
     
     scrape_status = "completed" if apify_status == "SUCCEEDED" else "failed"
     
-    return {
+    # Update cache for real-time status polling
+    unique_id = state.get("unique_id")
+    updated_state = {
         **state,
         "apify_status": apify_status,
-        "scrape_status": scrape_status if apify_status == "SUCCEEDED" else "failed",
+        "scrape_status": scrape_status,
     }
+    if unique_id:
+        from app.api.routes import _status_cache
+        _status_cache[unique_id] = updated_state
+    
+    return updated_state
 
 
 def fetch_dataset(state: LinkifyState) -> LinkifyState:
@@ -202,6 +209,12 @@ def fetch_dataset(state: LinkifyState) -> LinkifyState:
                 
                 # Start a new scrape
                 try:
+                    # Update cache to show retrying
+                    from app.api.routes import _status_cache
+                    unique_id = state.get("unique_id")
+                    if unique_id:
+                        _status_cache[unique_id] = {**state, "scrape_status": "retrying"}
+                    
                     new_run_info = asyncio.run(apify.start_scrape(linkedin_url))
                     new_run_id = new_run_info["run_id"]
                     

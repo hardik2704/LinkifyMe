@@ -198,8 +198,8 @@ async def get_status(unique_id: str, force_sheets: bool = False):
     if scrape_status == "failed":
         current_step = "failed"
         progress = 0
-    elif (scrape_status == "completed" and ai_status == "completed" and persistence_status == "completed"):
-        # Complete ONLY when AI is done AND persistence is finished
+    elif (scrape_status == "completed" and ai_status == "completed" and persistence_status == "completed") or has_scores:
+        # Complete when AI is done AND persistence is finished (or we found scores in Sheets)
         current_step = "complete"
         progress = 100
     elif ai_status == "scoring":
