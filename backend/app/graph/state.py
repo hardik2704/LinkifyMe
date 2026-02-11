@@ -60,6 +60,10 @@ class LinkifyState(TypedDict, total=False):
     apify_status: Optional[str]
     scraped_profile: Optional[dict[str, Any]]
     
+    # === Previous Data (for Partial Scoring) ===
+    previous_scraped_profile: Optional[dict[str, Any]]
+    previous_scores: Optional[dict[str, Any]]
+    
     # === Scoring Data ===
     scores: Optional[dict[str, Any]]
     executive_summary: Optional[str]

@@ -526,6 +526,20 @@ class GoogleSheetsService:
         
         return None
     
+    def get_profile_by_attempt_id(self, attempt_id: str) -> Optional[dict[str, Any]]:
+        """Find a profile by attempt_id (column 2). Returns data or None."""
+        sheet = self._get_sheet(SHEET_PROFILE_INFO)
+        all_values = sheet.get_all_values()
+        
+        # Iterate backwards
+        for idx in range(len(all_values) - 1, -1, -1):
+            row = all_values[idx]
+            # Column 2 (index 1) is Attempt ID
+            if len(row) > 1 and row[1] == attempt_id:
+                return self.get_profile_info(idx + 1)
+        
+        return None
+    
     # =========================================================================
     # Profile Scoring (PS) Operations
     # =========================================================================

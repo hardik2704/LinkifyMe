@@ -21,8 +21,8 @@ def ai_scoring(state: LinkifyState) -> LinkifyState:
     Input: scraped_profile, target_group, linkedin_url, customer_id
     Output: scores with section scores and reasonings
     """
-    # Import routes to update cache for real-time status updates
-    from app.api.routes import _status_cache
+    # Import service
+    from app.services.openai_scoring import get_scoring_service
     
     sheets = get_sheets_service()
     
@@ -31,7 +31,7 @@ def ai_scoring(state: LinkifyState) -> LinkifyState:
     if unique_id:
         _status_cache[unique_id] = {
             **state,
-            "ai_scoring_status": "scoring",  # Intermediate status
+            "ai_scoring_status": "scoring",
             "scrape_status": "completed",
         }
     
@@ -42,7 +42,7 @@ def ai_scoring(state: LinkifyState) -> LinkifyState:
         sheets.append_activity_log(
             unique_id=state["unique_id"],
             customer_id=state.get("customer_id"),
-            event_type="deterministic_scoring",
+            event_type="ai_scoring",
             status="error",
             message=error_message,
         )
@@ -53,98 +53,117 @@ def ai_scoring(state: LinkifyState) -> LinkifyState:
             "error_message": error_message,
         }
     
-    # Map target_group to persona
-    target_group = state.get("target_group", "recruiters")
-    persona_map = {
-        "recruiters": "big_company_recruiter",
-        "vcs": "vc",
-        "founders": "personal_brand_pros",
-    }
-    persona = persona_map.get(target_group, "big_company_recruiter")
+    # Get user info for partial scoring optimization
+    user_id = state.get("user_id")
+    previous_profile = None
+    previous_scores = None
     
+    if user_id:
+        try:
+            # Fetch all attempts
+            attempts = sheets.get_user_attempts(user_id)
+            if attempts:
+                # Get the latest completed attempt (not the current one)
+                # Filter out current if it exists (by checking if final_score is > 0 or status is completed)
+                valid_attempts = [a for a in attempts if a.get("final_score", 0) > 0]
+                
+                if valid_attempts:
+                    last_attempt = valid_attempts[0] # Sorted newest first
+                    attempt_id = last_attempt.get("attempt_id")
+                    
+                    # Fetch scores
+                    previous_scores = sheets.get_scores_by_attempt_id(attempt_id)
+                    
+                    # Fetch profile
+                    raw_prev_profile = sheets.get_profile_by_attempt_id(attempt_id)
+                    
+                    # Parse JSON strings in previous profile to match scraped_profile structure
+                    if raw_prev_profile:
+                        import json
+                        previous_profile = raw_prev_profile.copy()
+                        for key in ["experience_json", "education_json", "skills_json", "certifications_json"]:
+                            val = raw_prev_profile.get(key)
+                            target_key = key.replace("_json", "") # experience, education...
+                            if key == "certifications_json": target_key = "certifications"
+                            
+                            if val and isinstance(val, str):
+                                try:
+                                    previous_profile[target_key] = json.loads(val)
+                                except:
+                                    previous_profile[target_key] = []
+                            else:
+                                previous_profile[target_key] = []
+                        
+                        # Map other keys to match Apify structure if needed
+                        previous_profile["headline"] = raw_prev_profile.get("headline")
+                        previous_profile["about"] = raw_prev_profile.get("about")
+                        previous_profile["summary"] = raw_prev_profile.get("about")
+                        previous_profile["pictureUrl"] = raw_prev_profile.get("profile_picture_url")
+                        previous_profile["coverImageUrl"] = raw_prev_profile.get("cover_picture_url")
+                        previous_profile["isVerified"] = raw_prev_profile.get("is_verified") == "Yes"
+                        previous_profile["isPremium"] = raw_prev_profile.get("is_premium") == "Yes"
+                        previous_profile["followerCount"] = raw_prev_profile.get("follower_count")
+                        previous_profile["connectionCount"] = raw_prev_profile.get("connection_count")
+
+        except Exception as e:
+            # Log warning but proceed with full scoring
+            print(f"Failed to fetch previous data for partial scoring: {e}")
+            pass
+
+    target_group = state.get("target_group", "recruiters")
     linkedin_url = state.get("linkedin_url", "")
-    customer_id = state.get("customer_id", "")
     
     try:
-        # Run DETERMINISTIC scoring using rule-based scorers
-        scores = get_pre_scores(
-            profile=scraped_profile,
+        # Run AI scoring (Partial or Full)
+        scoring_service = get_scoring_service()
+        scores = scoring_service.score_profile(
+            scraped_profile=scraped_profile,
+            target_group=target_group,
             linkedin_url=linkedin_url,
-            customer_id=customer_id,
-            persona=persona
+            previous_profile=previous_profile,
+            previous_scores=previous_scores,
         )
         
-        # Map output format to match expected schema
-        # The persist node expects keys like "Headline Score", "is Premium Score", etc.
-        formatted_scores = {
-            "LinkedIn URL": linkedin_url,
-            "Headline Score": scores.get("Headline Score", 0),
-            "Connection Count Score": scores.get("Connection Score", 0),
-            "Follower Count Score": scores.get("Follower Score", 0),
-            "About Score": scores.get("About Score", 0),
-            "Profile Pic Score": scores.get("Profile Pic Score", 0),
-            "Cover_picture Score": scores.get("Cover_picture Score", 0),
-            "Experience Score": scores.get("Experience Score", 0),
-            "Education Score": scores.get("Education Score", 0),
-            "Skills Score": scores.get("Skills Score", 0),
-            "Licenses & Certifications Score": scores.get("Licenses & Certifications Score", 0),
-            "is Verified Score": scores.get("Is Verified Score", 0),
-            "is Premium Score": scores.get("Is Premium Score", 0),
-            "Cumulative Sum of Score(100)": scores.get("Final Score", 0),
-            # Reasonings from debug info
-            "Headline Reasoning": "; ".join(scores.get("_debug", {}).get("sections", {}).get("headline", {}).get("reasons", [])),
-            "Connection Reasoning": "; ".join(scores.get("_debug", {}).get("sections", {}).get("connections", {}).get("reasons", [])),
-            "Follower Reasoning": "; ".join(scores.get("_debug", {}).get("sections", {}).get("followers", {}).get("reasons", [])),
-            "About Reasoning": "; ".join(scores.get("_debug", {}).get("sections", {}).get("about", {}).get("reasons", [])),
-            "Profile Pic Reasoning": "; ".join(scores.get("_debug", {}).get("sections", {}).get("profile_pic", {}).get("reasons", [])),
-            "Cover_picture Reasoning": "; ".join(scores.get("_debug", {}).get("sections", {}).get("cover_picture", {}).get("reasons", [])),
-            "Experience Reasoning": "; ".join(scores.get("_debug", {}).get("sections", {}).get("experience", {}).get("reasons", [])),
-            "Education Reasoning": "; ".join(scores.get("_debug", {}).get("sections", {}).get("education", {}).get("reasons", [])),
-            "Skills Reasoning": "; ".join(scores.get("_debug", {}).get("sections", {}).get("skills", {}).get("reasons", [])),
-            "Licenses & Certifications Reasoning": "; ".join(scores.get("_debug", {}).get("sections", {}).get("licenses_certs", {}).get("reasons", [])),
-            "Cumulative Sum Reasoning": f"Deterministic scoring using {persona} persona. Quality gates: {'; '.join(scores.get('_debug', {}).get('quality_gates_applied', []) or ['None'])}",
-        }
-        
-        overall_score = formatted_scores["Cumulative Sum of Score(100)"]
-        executive_summary = formatted_scores["Cumulative Sum Reasoning"]
+        overall_score = scores.get("Cumulative Sum of Score(100)", 0)
+        executive_summary = scores.get("Cumulative Sum Reasoning", "")
         
         # Build section scores dict
         section_scores = {
-            "headline": formatted_scores["Headline Score"],
-            "connections": formatted_scores["Connection Count Score"],
-            "followers": formatted_scores["Follower Count Score"],
-            "about": formatted_scores["About Score"],
-            "profile_pic": formatted_scores["Profile Pic Score"],
-            "cover_picture": formatted_scores["Cover_picture Score"],
-            "experience": formatted_scores["Experience Score"],
-            "education": formatted_scores["Education Score"],
-            "skills": formatted_scores["Skills Score"],
-            "licenses_certs": formatted_scores["Licenses & Certifications Score"],
-            "verified": formatted_scores["is Verified Score"],
-            "premium": formatted_scores["is Premium Score"],
+            "headline": scores.get("Headline Score", 0),
+            "connections": scores.get("Connection Count Score", 0),
+            "followers": scores.get("Follower Count Score", 0),
+            "about": scores.get("About Score", 0),
+            "profile_pic": scores.get("Profile Pic Score", 0),
+            "cover_picture": scores.get("Cover_picture Score", 0),
+            "experience": scores.get("Experience Score", 0),
+            "education": scores.get("Education Score", 0),
+            "skills": scores.get("Skills Score", 0),
+            "licenses_certs": scores.get("Licenses & Certifications Score", 0),
+            "verified": scores.get("is Verified Score", 0),
+            "premium": scores.get("is Premium Score", 0),
         }
         
         # Build section analyses/reasoning dict
         section_analyses = {
-            "headline": formatted_scores["Headline Reasoning"],
-            "connections": formatted_scores["Connection Reasoning"],
-            "followers": formatted_scores["Follower Reasoning"],
-            "about": formatted_scores["About Reasoning"],
-            "profile_pic": formatted_scores["Profile Pic Reasoning"],
-            "cover_picture": formatted_scores["Cover_picture Reasoning"],
-            "experience": formatted_scores["Experience Reasoning"],
-            "education": formatted_scores["Education Reasoning"],
-            "skills": formatted_scores["Skills Reasoning"],
-            "licenses_certs": formatted_scores["Licenses & Certifications Reasoning"],
+            "headline": scores.get("Headline Reasoning", ""),
+            "connections": scores.get("Connection Reasoning", ""),
+            "followers": scores.get("Follower Reasoning", ""),
+            "about": scores.get("About Reasoning", ""),
+            "profile_pic": scores.get("Profile Pic Reasoning", ""),
+            "cover_picture": scores.get("Cover_picture Reasoning", ""),
+            "experience": scores.get("Experience Reasoning", ""),
+            "education": scores.get("Education Reasoning", ""),
+            "skills": scores.get("Skills Reasoning", ""),
+            "licenses_certs": scores.get("Licenses & Certifications Reasoning", ""),
         }
         
     except Exception as e:
-        error_message = f"Deterministic scoring failed: {str(e)}"
+        error_message = f"AI scoring failed: {str(e)}"
         
         sheets.append_activity_log(
             unique_id=state["unique_id"],
             customer_id=state.get("customer_id"),
-            event_type="deterministic_scoring",
+            event_type="ai_scoring",
             status="error",
             message=error_message,
         )
@@ -159,26 +178,28 @@ def ai_scoring(state: LinkifyState) -> LinkifyState:
     sheets.append_activity_log(
         unique_id=state["unique_id"],
         customer_id=state.get("customer_id"),
-        event_type="deterministic_scoring",
+        event_type="ai_scoring",
         status="success",
-        message=f"Deterministic scoring complete. Overall score: {overall_score}/100 (persona: {persona})",
+        message=f"AI scoring complete. Overall score: {overall_score}/100",
     )
     
     # Update in-memory activity log
     activity_log = state.get("activity_log", [])
     activity_log.append({
         "timestamp": datetime.utcnow().isoformat(),
-        "event_type": "deterministic_scoring",
+        "event_type": "ai_scoring",
         "status": "success",
         "message": f"Scoring complete. Overall score: {overall_score}/100",
     })
     
     return {
         **state,
-        "scores": formatted_scores,  # Full response with all scores and reasonings
+        "scores": scores,
         "executive_summary": executive_summary,
         "section_scores": section_scores,
         "section_analyses": section_analyses,
         "ai_scoring_status": "completed",
         "activity_log": activity_log,
+        "previous_scraped_profile": previous_profile, # Save for debug/future
+        "previous_scores": previous_scores,
     }
