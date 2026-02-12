@@ -23,6 +23,7 @@ def ai_scoring(state: LinkifyState) -> LinkifyState:
     """
     # Import service
     from app.services.openai_scoring import get_scoring_service
+    from app.api.routes import _status_cache
     
     sheets = get_sheets_service()
     
