@@ -118,7 +118,7 @@ const Navbar: React.FC = () => {
                                     key="full-logo"
                                     src="/logos/LinkifyMe_Logo_HomePage.svg"
                                     alt="LinkifyMe"
-                                    className="h-10 md:h-14 w-auto object-contain"
+                                    className="h-20 md:h-28 w-auto object-contain"
                                     initial={{ opacity: 0, scale: 0.8, rotateX: -90 }}
                                     animate={{ opacity: 1, scale: 1, rotateX: 0 }}
                                     exit={{ opacity: 0, scale: 0.8, rotateX: 90 }}
