@@ -5,15 +5,17 @@ import Link from "next/link";
 import { cn } from "@/lib/cn";
 import { Container } from "./Container";
 import { Button } from "@/components/ui/Button";
-import { Zap, Share2, Download } from "lucide-react";
+import { Zap, Share2, Download, Check } from "lucide-react";
 
 type TopNavMode = "marketing" | "dashboard";
 
 interface TopNavProps {
     mode?: TopNavMode;
+    onShare?: () => void;
+    isShared?: boolean;
 }
 
-export function TopNav({ mode = "marketing" }: TopNavProps) {
+export function TopNav({ mode = "marketing", onShare, isShared }: TopNavProps) {
     const [isScrolled, setIsScrolled] = useState(false);
 
     useEffect(() => {
@@ -35,11 +37,14 @@ export function TopNav({ mode = "marketing" }: TopNavProps) {
                         <span className="text-lg font-bold text-slate-900">LinkifyMe</span>
                     </Link>
                     <div className="flex items-center gap-3">
-                        <Button variant="outline" size="sm" leftIcon={<Share2 className="h-4 w-4" />}>
-                            Share
-                        </Button>
-                        <Button variant="gradient" size="sm" leftIcon={<Download className="h-4 w-4" />}>
-                            Export Report
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            leftIcon={isShared ? <Check className="h-4 w-4 text-emerald-500" /> : <Share2 className="h-4 w-4" />}
+                            onClick={onShare}
+                            className={isShared ? "border-emerald-200 bg-emerald-50" : ""}
+                        >
+                            {isShared ? "Link Copied!" : "Share Link"}
                         </Button>
                     </div>
                 </Container>

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { Camera, Image, Type, Users, UserPlus, User, Briefcase, GraduationCap, Award, Wrench, CheckCircle, Crown, Share2, Check, Copy } from "lucide-react";
+import { Camera, Image, Type, Users, UserPlus, User, Briefcase, GraduationCap, Award, Wrench, CheckCircle, Crown, Share2, Check } from "lucide-react";
 import { PageShell } from "@/components/layout/PageShell";
 import { TopNav } from "@/components/layout/TopNav";
 import { Container } from "@/components/layout/Container";
@@ -206,7 +206,11 @@ export default function ReportPage() {
 
     return (
         <PageShell variant="dashboard">
-            <TopNav mode="dashboard" />
+            <TopNav
+                mode="dashboard"
+                onShare={handleShareReport}
+                isShared={copied}
+            />
 
             <Container className="py-8">
                 <div className="flex gap-8">
@@ -250,7 +254,7 @@ export default function ReportPage() {
                                         leftIcon={copied ? <Check className="h-4 w-4 text-emerald-500" /> : <Share2 className="h-4 w-4" />}
                                         className={copied ? "border-emerald-200 bg-emerald-50" : ""}
                                     >
-                                        {copied ? "Link Copied!" : "Share Report"}
+                                        {copied ? "Link Copied!" : "Share Link"}
                                     </Button>
                                 )}
                             </div>
