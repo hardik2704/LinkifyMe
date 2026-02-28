@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { cn } from "@/lib/cn";
 import { Container } from "./Container";
 import { Button } from "@/components/ui/Button";
@@ -31,10 +32,13 @@ export function TopNav({ mode = "marketing", onShare, isShared }: TopNavProps) {
             <header className="sticky top-0 z-50 border-b border-slate-100 bg-white/80 backdrop-blur-md">
                 <Container className="flex h-16 items-center justify-between">
                     <Link href="/" className="flex items-center gap-2">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand">
-                            <Zap className="h-4 w-4 text-white" />
-                        </div>
-                        <span className="text-lg font-bold text-slate-900">LinkifyMe</span>
+                        <Image
+                            src="/logos/LinkifyMe_Logo_HomePage.svg"
+                            alt="LinkifyMe"
+                            width={80}
+                            height={40}
+                            className="h-8 w-auto"
+                        />
                     </Link>
                     <div className="flex items-center gap-3">
                         <Button
@@ -69,10 +73,13 @@ export function TopNav({ mode = "marketing", onShare, isShared }: TopNavProps) {
                     )}
                 >
                     <Link href="/" className="flex items-center gap-2">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand">
-                            <Zap className="h-4 w-4 text-white" />
-                        </div>
-                        <span className="text-lg font-bold text-slate-900">LinkifyMe.</span>
+                        <Image
+                            src="/logos/LinkifyMe_Logo_HomePage.svg"
+                            alt="LinkifyMe"
+                            width={80}
+                            height={40}
+                            className="h-8 w-auto"
+                        />
                     </Link>
                     <div className="flex items-center gap-4">
                         <Link href="#features" className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">

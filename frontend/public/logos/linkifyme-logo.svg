@@ -1,0 +1,10 @@
+<svg width="120" height="60" viewBox="0 0 120 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- L -->
+  <text x="2" y="50" font-family="'Georgia', 'Times New Roman', serif" font-weight="bold" font-size="52" fill="#2563EB">L</text>
+  <!-- i with sparkle replacing the dot -->
+  <text x="35" y="50" font-family="'Georgia', 'Times New Roman', serif" font-weight="bold" font-size="52" fill="#2563EB">i</text>
+  <!-- Four-pointed star/sparkle above the "i" -->
+  <path d="M 46 8 L 47.5 14 L 54 15.5 L 47.5 17 L 46 23 L 44.5 17 L 38 15.5 L 44.5 14 Z" fill="#2563EB"/>
+  <!-- n -->
+  <text x="55" y="50" font-family="'Georgia', 'Times New Roman', serif" font-weight="bold" font-size="52" fill="#2563EB">n</text>
+</svg>
