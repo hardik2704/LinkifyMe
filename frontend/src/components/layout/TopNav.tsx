@@ -35,9 +35,9 @@ export function TopNav({ mode = "marketing", onShare, isShared }: TopNavProps) {
                         <Image
                             src="/logos/LinkifyMe_Logo_HomePage.svg"
                             alt="LinkifyMe"
-                            width={160}
-                            height={80}
-                            className="h-16 w-auto"
+                            width={240}
+                            height={120}
+                            className="h-20 w-auto"
                         />
                     </Link>
                     <div className="flex items-center gap-3">
