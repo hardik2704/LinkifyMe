@@ -174,7 +174,13 @@ export async function submitFeedback(
 
     if (!response.ok) {
         const error = await response.json().catch(() => ({}));
-        throw new Error(error.detail || "Failed to submit feedback");
+        let errorMsg = error.detail || "Failed to submit feedback";
+        if (Array.isArray(errorMsg)) {
+            errorMsg = errorMsg.map((e: any) => e.msg).join(", ");
+        } else if (typeof errorMsg === "object") {
+            errorMsg = JSON.stringify(errorMsg);
+        }
+        throw new Error(errorMsg);
     }
 
     return response.json();

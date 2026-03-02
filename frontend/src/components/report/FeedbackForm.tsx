@@ -30,8 +30,8 @@ function StarRating({ value, onChange, label }: { value: number; onChange: (v: n
                     >
                         <Star
                             className={`h-6 w-6 transition-colors ${star <= (hover || value)
-                                    ? "fill-amber-400 text-amber-400"
-                                    : "text-slate-300"
+                                ? "fill-amber-400 text-amber-400"
+                                : "text-slate-300"
                                 }`}
                         />
                     </button>
@@ -61,7 +61,7 @@ export function FeedbackForm({ email, customerId, onSubmitSuccess, compact }: Fe
 
         try {
             await submitFeedback({
-                email,
+                email: email || "anonymous@linkifyme.com",
                 customer_id: customerId,
                 would_refer: wouldRefer,
                 was_helpful: wasHelpful,
@@ -124,7 +124,7 @@ export function FeedbackForm({ email, customerId, onSubmitSuccess, compact }: Fe
             <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-700 text-white text-sm font-semibold shadow-sm hover:from-indigo-700 hover:to-indigo-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                className="w-full py-2.5 px-4 rounded-xl bg-brand text-white text-sm font-semibold shadow-sm hover:bg-brand-dark disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             >
                 {isSubmitting ? "Submitting..." : "Submit Feedback"}
             </button>

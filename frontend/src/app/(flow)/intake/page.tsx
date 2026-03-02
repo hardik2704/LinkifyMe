@@ -32,6 +32,35 @@ export default function IntakePage() {
     const [returningUser, setReturningUser] = useState<UserInfo | null>(null);
     const [isCheckingUser, setIsCheckingUser] = useState(false);
 
+    // Reattempt state
+    const [isReattempt, setIsReattempt] = useState(false);
+
+    // Parse URL params on mount
+    useEffect(() => {
+        if (typeof window !== "undefined") {
+            const params = new URLSearchParams(window.location.search);
+            if (params.get("reattempt") === "true") {
+                setIsReattempt(true);
+                const rUrl = params.get("linkedin_url");
+                const rEmail = params.get("email");
+                const rPhone = params.get("phone");
+
+                if (rUrl) setLinkedinUrl(rUrl);
+                if (rEmail) setEmail(rEmail);
+                if (rPhone) {
+                    // Simple parsing for country code vs phone if prefixed with +
+                    const match = rPhone.match(/^(\+\d{1,3})(\d+)$/);
+                    if (match) {
+                        setCountryCode(match[1]);
+                        setPhone(match[2]);
+                    } else {
+                        setPhone(rPhone);
+                    }
+                }
+            }
+        }
+    }, []);
+
     // Debounced user lookup when LinkedIn URL changes
     const checkForReturningUser = useCallback(async (url: string) => {
         if (!url || url.length < 20) {
@@ -201,6 +230,8 @@ export default function IntakePage() {
                                     value={linkedinUrl}
                                     onChange={(e) => setLinkedinUrl(e.target.value)}
                                     required
+                                    readOnly={isReattempt}
+                                    className={isReattempt ? "bg-slate-50 text-slate-500 cursor-not-allowed border-slate-200" : ""}
                                 />
                                 <p className="mt-1.5 text-xs text-slate-500">
                                     Personal profiles only (not company pages)
@@ -218,6 +249,8 @@ export default function IntakePage() {
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
                                     required
+                                    readOnly={isReattempt}
+                                    className={isReattempt ? "bg-slate-50 text-slate-500 cursor-not-allowed border-slate-200" : ""}
                                 />
                                 <p className="mt-1.5 text-xs text-slate-500">
                                     We&apos;ll send your detailed report here
@@ -228,32 +261,27 @@ export default function IntakePage() {
                                 <Label htmlFor="phone" required>Phone Number</Label>
                                 <div className="flex gap-2">
                                     <select
-                                        id="country-code"
                                         value={countryCode}
                                         onChange={(e) => setCountryCode(e.target.value)}
-                                        className="w-[90px] flex-shrink-0 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm transition-colors focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 appearance-none"
-                                        style={{ backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`, backgroundPosition: 'right 6px center', backgroundRepeat: 'no-repeat', backgroundSize: '16px' }}
+                                        className={`w-24 px-3 py-2.5 rounded-xl border border-slate-200 bg-white/50 text-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand ${isReattempt ? "bg-slate-50 text-slate-500 cursor-not-allowed opacity-80 pointer-events-none" : ""}`}
+                                        disabled={isReattempt}
                                     >
-                                        <option value="+91">🇮🇳 +91</option>
                                         <option value="+1">🇺🇸 +1</option>
                                         <option value="+44">🇬🇧 +44</option>
+                                        <option value="+91">🇮🇳 +91</option>
                                         <option value="+61">🇦🇺 +61</option>
-                                        <option value="+971">🇦🇪 +971</option>
-                                        <option value="+86">🇨🇳 +86</option>
-                                        <option value="+49">🇩🇪 +49</option>
-                                        <option value="+33">🇫🇷 +33</option>
-                                        <option value="+81">🇯🇵 +81</option>
                                         <option value="+65">🇸🇬 +65</option>
-                                        <option value="+852">🇭🇰 +852</option>
+                                        <option value="+971">🇦🇪 +971</option>
                                     </select>
                                     <Input
                                         id="phone"
                                         type="tel"
-                                        placeholder="98765 43210"
+                                        placeholder="Mobile Number"
                                         value={phone}
                                         onChange={(e) => setPhone(e.target.value)}
                                         required
-                                        className="flex-1"
+                                        readOnly={isReattempt}
+                                        className={`flex-1 ${isReattempt ? "bg-slate-50 text-slate-500 cursor-not-allowed border-slate-200" : ""}`}
                                     />
                                 </div>
                                 <p className="mt-1.5 text-xs text-slate-500">

@@ -34,12 +34,12 @@ export function FeedbackModal({ isOpen, onClose, email, customerId }: FeedbackMo
                         className="fixed inset-0 z-[101] flex items-center justify-center p-4"
                     >
                         <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden">
-                            {/* Header gradient */}
-                            <div className="bg-gradient-to-r from-indigo-600 to-violet-600 px-6 py-5">
+                            {/* Header */}
+                            <div className="bg-brand px-6 py-5">
                                 <div className="flex items-center justify-between">
                                     <div>
                                         <h3 className="text-lg font-bold text-white">Quick Feedback</h3>
-                                        <p className="text-indigo-200 text-sm mt-0.5">Help us improve your experience</p>
+                                        <p className="text-white/80 text-sm mt-0.5">Help us improve your experience</p>
                                     </div>
                                     <button
                                         onClick={onClose}

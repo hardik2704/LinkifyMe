@@ -251,7 +251,14 @@ export default function ReportPage() {
         setActiveSection(sectionId);
         const el = document.getElementById(`section-${sectionId}`);
         if (el) {
-            el.scrollIntoView({ behavior: "smooth", block: "start" });
+            const headerOffset = 80; // Height of TopNav + some padding
+            const elementPosition = el.getBoundingClientRect().top;
+            const offsetPosition = elementPosition + window.scrollY - headerOffset;
+
+            window.scrollTo({
+                top: offsetPosition,
+                behavior: "smooth"
+            });
         }
     }, []);
 
@@ -340,10 +347,16 @@ export default function ReportPage() {
                                         We&apos;ve analyzed <strong>{report.sections.length} key areas</strong> of your profile. Review the insights below to optimize your personal brand.
                                     </p>
                                     {/* Report creation time badge */}
-                                    {report.report_generation_minutes && (
+                                    {report.report_generation_minutes !== undefined && report.report_generation_minutes !== null && (
                                         <div className="flex items-center gap-1.5 mt-2 text-xs text-slate-500">
                                             <Clock className="h-3.5 w-3.5" />
-                                            <span>Report created in <strong>{report.report_generation_minutes} min</strong></span>
+                                            <span>
+                                                Report created in <strong>
+                                                    {report.report_generation_minutes < 1.0
+                                                        ? `${Math.round(report.report_generation_minutes * 60)} Seconds`
+                                                        : `${report.report_generation_minutes} min`}
+                                                </strong>
+                                            </span>
                                         </div>
                                     )}
                                 </div>
@@ -352,7 +365,10 @@ export default function ReportPage() {
                                     <Button
                                         variant="outline"
                                         size="md"
-                                        onClick={() => window.location.href = "/intake"}
+                                        onClick={() => {
+                                            const url = `/intake?reattempt=true&linkedin_url=${encodeURIComponent(report.profile.url || "")}&email=${encodeURIComponent(userEmail)}&phone=${encodeURIComponent(reportPhone || report.phone || "")}`;
+                                            window.location.href = url;
+                                        }}
                                         leftIcon={<RefreshCw className="h-4 w-4" />}
                                     >
                                         Reattempt

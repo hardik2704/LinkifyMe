@@ -339,6 +339,52 @@ async def get_report(report_id: str):
         elif ratio >= 0.4:
             return "needs_improvement"
         return "critical"
+        
+    import json
+    def safe_parse_json(jstr):
+        if not jstr: return []
+        try:
+            return json.loads(jstr)
+        except:
+            return []
+
+    def format_experience(exprs):
+        if not exprs: return None
+        if isinstance(exprs, str): exprs = safe_parse_json(exprs)
+        text_items = []
+        for exp in exprs[:5]:
+            title = exp.get("title", "")
+            company = exp.get("companyName", "") or exp.get("subtitle", "")
+            text_items.append(f"• {title} at {company}")
+        return "\n".join(text_items) + ("\n..." if len(exprs) > 5 else "") if text_items else None
+
+    def format_education(edus):
+        if not edus: return None
+        if isinstance(edus, str): edus = safe_parse_json(edus)
+        text_items = []
+        for ed in edus[:3]:
+            deg = ed.get("degreeName", "")
+            school = ed.get("schoolName", "") or ed.get("title", "")
+            if deg and school: text_items.append(f"• {deg} from {school}")
+            elif school: text_items.append(f"• {school}")
+        return "\n".join(text_items) + ("\n..." if len(edus) > 3 else "") if text_items else None
+
+    def format_skills(skills):
+        if not skills: return None
+        if isinstance(skills, str): skills = safe_parse_json(skills)
+        skill_names = [s.get("name", s) if isinstance(s, dict) else str(s) for s in skills]
+        return ", ".join(skill_names[:15]) + ("..." if len(skill_names) > 15 else "") if skill_names else None
+
+    def format_certs(certs):
+        if not certs: return None
+        if isinstance(certs, str): certs = safe_parse_json(certs)
+        text_items = []
+        for c in certs[:4]:
+            name = c.get("name", "") or c.get("title", "")
+            org = c.get("authority", "") or c.get("subtitle", "")
+            if name and org: text_items.append(f"• {name} ({org})")
+            elif name: text_items.append(f"• {name}")
+        return "\n".join(text_items) + ("\n..." if len(certs) > 4 else "") if text_items else None
     
     # Profile Photo
     score = scoring.get("profile_pic_score", 0)
@@ -371,6 +417,7 @@ async def get_report(report_id: str):
         max_score=10,
         status=get_status(score, 10),
         analysis=scoring.get("headline_reasoning"),
+        current_status=profile_info.get("headline") if profile_info else None,
         tags=["Keywords", "Value Proposition", "Clarity"],
     ))
     
@@ -383,6 +430,7 @@ async def get_report(report_id: str):
         max_score=10,
         status=get_status(score, 10),
         analysis=scoring.get("about_reasoning"),
+        current_status=profile_info.get("about") if profile_info else None,
         tags=["Storytelling", "Keywords", "Call to Action"],
     ))
     
@@ -395,6 +443,7 @@ async def get_report(report_id: str):
         max_score=10,
         status=get_status(score, 10),
         analysis=scoring.get("experience_reasoning"),
+        current_status=format_experience(profile_info.get("experience_json")) if profile_info else None,
     ))
     
     # Education
@@ -406,6 +455,7 @@ async def get_report(report_id: str):
         max_score=10,
         status=get_status(score, 10),
         analysis=scoring.get("education_reasoning"),
+        current_status=format_education(profile_info.get("education_json")) if profile_info else None,
     ))
     
     # Skills
@@ -417,6 +467,7 @@ async def get_report(report_id: str):
         max_score=10,
         status=get_status(score, 10),
         analysis=scoring.get("skills_reasoning"),
+        current_status=format_skills(profile_info.get("skills_json")) if profile_info else None,
     ))
     
     # Connections
@@ -450,6 +501,7 @@ async def get_report(report_id: str):
         max_score=10,
         status=get_status(score, 10),
         analysis=scoring.get("licenses_certs_reasoning"),
+        current_status=format_certs(profile_info.get("certifications_json")) if profile_info else None,
     ))
     
     # Is Verified
@@ -486,9 +538,22 @@ async def get_report(report_id: str):
         grade = "NEEDS WORK"
     
     # Top priorities based on lowest scoring sections
-    section_scores = [(s.title, s.score, s.max_score) for s in sections]
-    sorted_sections = sorted(section_scores, key=lambda x: x[1]/x[2] if x[2] > 0 else 0)
-    top_priorities = [f"Improve {s[0]}" for s in sorted_sections[:3]]
+    section_scores = []
+    for s in sections:
+        priority_score = s.score / s.max_score if s.max_score > 0 else 0
+        # Heavily deprioritize "Is Premium" unless it's the only one
+        if s.id == "premium":
+            priority_score += 10.0
+        section_scores.append((s, priority_score))
+        
+    sorted_sections = sorted(section_scores, key=lambda x: x[1])
+    
+    # Filter out optimized sections, but fallback to them if none are bad
+    needs_work = [s[0] for s in sorted_sections if s[0].status != "optimized"]
+    if not needs_work:
+        needs_work = [s[0] for s in sorted_sections]
+        
+    top_priorities = [f"Improve {s.title}" for s in needs_work[:3]]
     
     return ReportResponse(
         customer_id=user_id or report_id,  # Using user_id (from scoring) or fallback to report_id
