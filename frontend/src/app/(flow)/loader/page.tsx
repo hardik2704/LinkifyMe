@@ -20,9 +20,9 @@ const POLL_INTERVAL_MS = 5000; // 5 seconds instead of 2
 const MAX_BACKOFF_MS = 30000; // 30 seconds max
 
 const STEPS = [
-    { label: "Scraping", icon: <Search className="h-4 w-4" /> },
-    { label: "AI Analysis", icon: <BrainCircuit className="h-4 w-4" /> },
-    { label: "Report", icon: <FileText className="h-4 w-4" /> },
+    { label: "Step 1", icon: <Search className="h-4 w-4" /> },
+    { label: "Step 2", icon: <BrainCircuit className="h-4 w-4" /> },
+    { label: "Report Creation", icon: <FileText className="h-4 w-4" /> },
 ];
 
 const TIPS = [
@@ -157,10 +157,10 @@ export default function LoaderPage() {
                     setStatusMessage("Running AI Analysis...");
                 } else if (status.current_step === "scraping" || status.scrape_status === "scraping") {
                     setCurrentStep(0);
-                    setStatusMessage("Scraping Your LinkedIn...");
+                    setStatusMessage("Getting to know you...");
                 } else {
                     setCurrentStep(0);
-                    setStatusMessage("Starting Analysis...");
+                    setStatusMessage("Getting started...");
                 }
             }
 
@@ -286,10 +286,10 @@ export default function LoaderPage() {
     }));
 
     const stepLabels = [
-        { title: "Scraping Your LinkedIn...", subtitle: "Gathering profile information" },
+        { title: "Getting to know you...", subtitle: "Fetching your data" },
         { title: "Running AI Analysis...", subtitle: "Evaluating against 50+ criteria" },
-        { title: "Generating Report...", subtitle: "Preparing your insights" },
-        { title: "Analysis Complete!", subtitle: "Redirecting to your report" },
+        { title: "Creating your Report...", subtitle: "Preparing your insights" },
+        { title: "Report Ready!", subtitle: "Redirecting to your report" },
     ];
 
     if (error) {

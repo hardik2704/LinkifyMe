@@ -6,7 +6,7 @@ import Image from "next/image";
 import { cn } from "@/lib/cn";
 import { Container } from "./Container";
 import { Button } from "@/components/ui/Button";
-import { Zap, Share2, Download, Check } from "lucide-react";
+import { Zap, Share2, Download, Check, Menu } from "lucide-react";
 
 type TopNavMode = "marketing" | "dashboard";
 
@@ -14,9 +14,10 @@ interface TopNavProps {
     mode?: TopNavMode;
     onShare?: () => void;
     isShared?: boolean;
+    onMenuToggle?: () => void;
 }
 
-export function TopNav({ mode = "marketing", onShare, isShared }: TopNavProps) {
+export function TopNav({ mode = "marketing", onShare, isShared, onMenuToggle }: TopNavProps) {
     const [isScrolled, setIsScrolled] = useState(false);
 
     useEffect(() => {
@@ -31,15 +32,26 @@ export function TopNav({ mode = "marketing", onShare, isShared }: TopNavProps) {
         return (
             <header className="sticky top-0 z-50 border-b border-slate-100 bg-white/80 backdrop-blur-md">
                 <Container className="flex h-16 items-center justify-between">
-                    <Link href="/" className="flex items-center gap-2">
-                        <Image
-                            src="/logos/LinkifyMe_Logo_HomePage.svg"
-                            alt="LinkifyMe"
-                            width={240}
-                            height={120}
-                            className="h-20 w-auto"
-                        />
-                    </Link>
+                    <div className="flex items-center gap-3">
+                        {/* Mobile hamburger */}
+                        {onMenuToggle && (
+                            <button
+                                onClick={onMenuToggle}
+                                className="lg:hidden p-2 -ml-2 rounded-xl hover:bg-slate-100 transition-colors"
+                            >
+                                <Menu className="h-5 w-5 text-slate-700" />
+                            </button>
+                        )}
+                        <Link href="/" className="flex items-center gap-2">
+                            <Image
+                                src="/logos/LinkifyMe_Logo_HomePage.svg"
+                                alt="LinkifyMe"
+                                width={240}
+                                height={120}
+                                className="h-20 w-auto"
+                            />
+                        </Link>
+                    </div>
                     <div className="flex items-center gap-3">
                         <Button
                             variant="outline"
@@ -48,7 +60,7 @@ export function TopNav({ mode = "marketing", onShare, isShared }: TopNavProps) {
                             onClick={onShare}
                             className={isShared ? "border-emerald-200 bg-emerald-50" : ""}
                         >
-                            {isShared ? "Link Copied!" : "Share Link"}
+                            {isShared ? "Link Copied!" : "Share Report"}
                         </Button>
                     </div>
                 </Container>

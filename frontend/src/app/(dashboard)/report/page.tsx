@@ -1,16 +1,20 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { Camera, Image, Type, Users, UserPlus, User, Briefcase, GraduationCap, Award, Wrench, CheckCircle, Crown, Share2, Check } from "lucide-react";
+import { Camera, Image, Type, Users, UserPlus, User, Briefcase, GraduationCap, Award, Wrench, CheckCircle, Crown, Share2, Check, Clock, RefreshCw } from "lucide-react";
 import { PageShell } from "@/components/layout/PageShell";
 import { TopNav } from "@/components/layout/TopNav";
 import { Container } from "@/components/layout/Container";
-import { Sidebar } from "@/components/layout/Sidebar";
+import { Sidebar, defaultSections } from "@/components/layout/Sidebar";
 import { ExecutiveSummaryCard } from "@/components/report/ExecutiveSummaryCard";
 import { SectionScoreCard } from "@/components/report/SectionScoreCard";
+import { FeedbackForm } from "@/components/report/FeedbackForm";
+import { FeedbackModal } from "@/components/report/FeedbackModal";
+import { PasswordModal } from "@/components/report/PasswordModal";
 import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -55,11 +59,35 @@ interface ReportData {
     executive_summary: string;
     sections: Section[];
     top_priorities: string[];
+    profile_photo_url?: string;
+    cover_photo_url?: string;
+    report_generation_minutes?: number;
+    connection_count?: string;
+    follower_count?: string;
+    phone?: string;
+    attempt_id?: string;
+}
+
+// Milestone thresholds for connections/followers
+const MILESTONES = [100, 250, 500, 1000, 2000, 5000, 10000, 25000, 50000];
+
+function getMilestoneText(currentStr: string | undefined, label: string): string | undefined {
+    if (!currentStr) return undefined;
+    const current = parseInt(currentStr.replace(/,/g, ""), 10);
+    if (isNaN(current)) return undefined;
+
+    for (const milestone of MILESTONES) {
+        if (current < milestone) {
+            const remaining = milestone - current;
+            return `${remaining.toLocaleString()} more ${label} to reach ${milestone.toLocaleString()}!`;
+        }
+    }
+    return `You've crossed ${MILESTONES[MILESTONES.length - 1].toLocaleString()}+ ${label}! 🎉`;
 }
 
 // Default fallback data with all 12 sections (shown while loading or if no customer_id)
-const defaultReport = {
-    customer_id: "LM-00000",
+const defaultReport: ReportData = {
+    customer_id: "USR-00000",
     profile: {
         name: "Loading Profile...",
         initial: "?",
@@ -69,15 +97,15 @@ const defaultReport = {
     grade_label: "LOADING",
     executive_summary: "Analyzing your LinkedIn profile. Please wait for the complete report to load...",
     sections: [
-        { id: "headline", title: "Headline", score: 0, max_score: 10, status: "needs_improvement", analysis: "Loading headline analysis..." },
-        { id: "connections", title: "Connections", score: 0, max_score: 10, status: "needs_improvement", analysis: "Loading connections analysis..." },
-        { id: "followers", title: "Followers", score: 0, max_score: 10, status: "needs_improvement", analysis: "Loading followers analysis..." },
-        { id: "about", title: "About", score: 0, max_score: 10, status: "needs_improvement", analysis: "Loading about section analysis..." },
         { id: "profile-photo", title: "Profile Photo", score: 0, max_score: 10, status: "needs_improvement", analysis: "Loading profile photo analysis..." },
         { id: "cover-photo", title: "Cover Photo", score: 0, max_score: 10, status: "needs_improvement", analysis: "Loading cover photo analysis..." },
+        { id: "headline", title: "Headline", score: 0, max_score: 10, status: "needs_improvement", analysis: "Loading headline analysis..." },
+        { id: "about", title: "About", score: 0, max_score: 10, status: "needs_improvement", analysis: "Loading about section analysis..." },
         { id: "experience", title: "Experience", score: 0, max_score: 10, status: "needs_improvement", analysis: "Loading experience analysis..." },
         { id: "education", title: "Education", score: 0, max_score: 10, status: "needs_improvement", analysis: "Loading education analysis..." },
         { id: "skills", title: "Skills", score: 0, max_score: 10, status: "needs_improvement", analysis: "Loading skills analysis..." },
+        { id: "connections", title: "Connections", score: 0, max_score: 10, status: "needs_improvement", analysis: "Loading connections analysis..." },
+        { id: "followers", title: "Followers", score: 0, max_score: 10, status: "needs_improvement", analysis: "Loading followers analysis..." },
         { id: "certifications", title: "Licenses & Certifications", score: 0, max_score: 10, status: "needs_improvement", analysis: "Loading certifications analysis..." },
         { id: "verified", title: "Is Verified", score: 0, max_score: 10, status: "needs_improvement", analysis: "Loading verification status..." },
         { id: "premium", title: "Is Premium", score: 0, max_score: 10, status: "needs_improvement", analysis: "Loading premium status..." },
@@ -88,22 +116,43 @@ const defaultReport = {
 export default function ReportPage() {
     const searchParams = useSearchParams();
     const [activeSection, setActiveSection] = useState("headline");
-    const [report, setReport] = useState<ReportData>(defaultReport as ReportData);
+    const [report, setReport] = useState<ReportData>(defaultReport);
     const [loading, setLoading] = useState(true);
     const [currentAttemptId, setCurrentAttemptId] = useState<string | null>(null);
     const [copied, setCopied] = useState(false);
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
+    const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
 
-    const handleShareReport = async () => {
+    // Password protection state
+    const [isSharedView, setIsSharedView] = useState(false);
+    const [passwordVerified, setPasswordVerified] = useState(false);
+    const [reportPhone, setReportPhone] = useState<string>("");
+
+    const handleShareReport = useCallback(async () => {
         if (!currentAttemptId) return;
 
         const shareUrl = `${window.location.origin}/report?attempt_id=${currentAttemptId}`;
+
+        // Try native share first (mobile)
+        if (navigator.share) {
+            try {
+                await navigator.share({
+                    title: "My LinkifyMe Report",
+                    text: "Check out my LinkedIn profile analysis!",
+                    url: shareUrl,
+                });
+                return;
+            } catch {
+                // User cancelled or share failed, fall through to clipboard
+            }
+        }
 
         try {
             await navigator.clipboard.writeText(shareUrl);
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
-        } catch (err) {
-            // Fallback for older browsers
+        } catch {
             const textArea = document.createElement("textarea");
             textArea.value = shareUrl;
             document.body.appendChild(textArea);
@@ -113,25 +162,33 @@ export default function ReportPage() {
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
         }
-    };
+    }, [currentAttemptId]);
 
     useEffect(() => {
         const fetchReport = async () => {
-            // Try URL param first (shareable links), then sessionStorage
-            // attempt_id is primary, customer_id is fallback for backward compatibility
             const attemptId = searchParams.get("attempt_id") || sessionStorage.getItem("linkify_attempt_id");
             const customerId = searchParams.get("customer_id") || sessionStorage.getItem("linkify_customer_id");
 
-            // Use attempt_id if available, otherwise fall back to customer_id
+            // Check if this is a shared view (no session data, only URL param)
+            const isFromUrl = searchParams.has("attempt_id") && !sessionStorage.getItem("linkify_attempt_id");
+            if (isFromUrl) {
+                setIsSharedView(true);
+                // Check if already authenticated
+                const auth = sessionStorage.getItem("linkify_report_auth");
+                if (auth) {
+                    setPasswordVerified(true);
+                }
+            } else {
+                setPasswordVerified(true); // Owner - no password needed
+            }
+
             const reportId = attemptId || customerId;
 
             if (!reportId) {
-                // Use demo data
                 setLoading(false);
                 return;
             }
 
-            // Store attempt ID for sharing
             if (attemptId) {
                 setCurrentAttemptId(attemptId);
                 sessionStorage.setItem("linkify_attempt_id", attemptId);
@@ -146,18 +203,19 @@ export default function ReportPage() {
                     if (response.ok) {
                         const data = await response.json();
 
-                        // If overall_score is 0 but we have a profile name, it might be mid-write
-                        // Retry up to 3 times with a short delay
                         if (data.overall_score === 0 && data.profile?.name && attempts < maxAttempts) {
                             attempts++;
                             console.log(`[Report] Got 0 score, retrying attempt ${attempts}/${maxAttempts}...`);
-                            setTimeout(fetchWithRetry, 2000); // 2s delay
+                            setTimeout(fetchWithRetry, 2000);
                             return;
                         }
 
                         setReport(data);
                         if (data.attempt_id) {
                             setCurrentAttemptId(data.attempt_id);
+                        }
+                        if (data.phone) {
+                            setReportPhone(data.phone);
                         }
                     }
                 } catch (err) {
@@ -175,10 +233,35 @@ export default function ReportPage() {
         fetchReport();
     }, [searchParams]);
 
+    // Feedback popup timer — 60 seconds after page is ready
+    useEffect(() => {
+        if (loading || feedbackSubmitted) return;
+
+        const timer = setTimeout(() => {
+            if (!feedbackSubmitted) {
+                setFeedbackModalOpen(true);
+            }
+        }, 60000);
+
+        return () => clearTimeout(timer);
+    }, [loading, feedbackSubmitted]);
+
+    // Scroll to section on click
+    const handleSectionClick = useCallback((sectionId: string) => {
+        setActiveSection(sectionId);
+        const el = document.getElementById(`section-${sectionId}`);
+        if (el) {
+            el.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+    }, []);
+
+    // Get user email from sessionStorage
+    const userEmail = typeof window !== "undefined" ? sessionStorage.getItem("linkify_email") || "" : "";
+
     const sidebarSections = report.sections.map((s) => ({
         id: s.id,
         label: s.title,
-        icon: iconMap[s.id] ? () => iconMap[s.id] : Camera,
+        icon: Camera as any,
         hasIssue: s.status === "critical" || s.status === "needs_improvement",
     }));
 
@@ -188,7 +271,22 @@ export default function ReportPage() {
         url: report.profile.url,
         gradeLabel: report.grade_label,
         score: report.overall_score,
+        profilePhotoUrl: report.profile_photo_url,
     };
+
+    // Password protection check
+    if (isSharedView && !passwordVerified && reportPhone && !loading) {
+        return (
+            <PageShell variant="dashboard">
+                <TopNav mode="dashboard" />
+                <PasswordModal
+                    isOpen={true}
+                    phone={reportPhone}
+                    onSuccess={() => setPasswordVerified(true)}
+                />
+            </PageShell>
+        );
+    }
 
     if (loading) {
         return (
@@ -197,7 +295,7 @@ export default function ReportPage() {
                 <Container className="flex items-center justify-center min-h-[60vh]">
                     <div className="flex flex-col items-center gap-4">
                         <div className="h-12 w-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-                        <p className="text-slate-600 font-medium">Generating your profile report...</p>
+                        <p className="text-slate-600 font-medium">Loading your profile report...</p>
                     </div>
                 </Container>
             </PageShell>
@@ -210,6 +308,7 @@ export default function ReportPage() {
                 mode="dashboard"
                 onShare={handleShareReport}
                 isShared={copied}
+                onMenuToggle={() => setMobileMenuOpen((v) => !v)}
             />
 
             <Container className="py-8">
@@ -217,16 +316,11 @@ export default function ReportPage() {
                     {/* Sidebar */}
                     <Sidebar
                         profile={sidebarProfile}
-                        sections={sidebarSections.map(s => ({
-                            ...s,
-                            icon: iconMap[s.id] ? (() => {
-                                const icons: Record<string, any> = { Camera, Image, Type, Users, UserPlus, User, Briefcase, GraduationCap, Award, Wrench };
-                                return icons[Object.keys(iconMap).find(k => k === s.id) || "Camera"] || Camera;
-                            })() : Camera
-                        }))}
+                        sections={sidebarSections}
                         activeSection={activeSection}
-                        onSectionClick={setActiveSection}
-                        className="hidden lg:block"
+                        onSectionClick={handleSectionClick}
+                        mobileOpen={mobileMenuOpen}
+                        onMobileClose={() => setMobileMenuOpen(false)}
                     />
 
                     {/* Main Content */}
@@ -245,18 +339,37 @@ export default function ReportPage() {
                                     <p className="text-slate-600">
                                         We&apos;ve analyzed <strong>{report.sections.length} key areas</strong> of your profile. Review the insights below to optimize your personal brand.
                                     </p>
+                                    {/* Report creation time badge */}
+                                    {report.report_generation_minutes && (
+                                        <div className="flex items-center gap-1.5 mt-2 text-xs text-slate-500">
+                                            <Clock className="h-3.5 w-3.5" />
+                                            <span>Report created in <strong>{report.report_generation_minutes} min</strong></span>
+                                        </div>
+                                    )}
                                 </div>
-                                {currentAttemptId && (
+                                <div className="flex items-center gap-2 flex-shrink-0">
+                                    {/* Reattempt button */}
                                     <Button
                                         variant="outline"
                                         size="md"
-                                        onClick={handleShareReport}
-                                        leftIcon={copied ? <Check className="h-4 w-4 text-emerald-500" /> : <Share2 className="h-4 w-4" />}
-                                        className={copied ? "border-emerald-200 bg-emerald-50" : ""}
+                                        onClick={() => window.location.href = "/intake"}
+                                        leftIcon={<RefreshCw className="h-4 w-4" />}
                                     >
-                                        {copied ? "Link Copied!" : "Share Link"}
+                                        Reattempt
                                     </Button>
-                                )}
+                                    {/* Share button */}
+                                    {currentAttemptId && (
+                                        <Button
+                                            variant="outline"
+                                            size="md"
+                                            onClick={handleShareReport}
+                                            leftIcon={copied ? <Check className="h-4 w-4 text-emerald-500" /> : <Share2 className="h-4 w-4" />}
+                                            className={copied ? "border-emerald-200 bg-emerald-50" : ""}
+                                        >
+                                            {copied ? "Link Copied!" : "Share Report"}
+                                        </Button>
+                                    )}
+                                </div>
                             </div>
 
                             {/* Executive Summary */}
@@ -274,26 +387,60 @@ export default function ReportPage() {
 
                             {/* Section Cards */}
                             <div className="space-y-6">
-                                {report.sections.map((section) => (
-                                    <SectionScoreCard
-                                        key={section.id}
-                                        id={section.id}
-                                        title={section.title}
-                                        icon={iconMap[section.id] || <Camera className="h-5 w-5" />}
-                                        statusTone={section.status === "optimized" ? "success" : section.status === "needs_improvement" ? "warning" : "critical"}
-                                        scoreText={`${section.score}/${section.max_score}`}
-                                        currentStatusText={section.current_status}
-                                        analysisText={section.analysis}
-                                        showAIRewrite={!!section.ai_rewrite}
-                                        aiRewriteText={section.ai_rewrite}
-                                        aiRewriteTags={section.tags}
-                                    />
-                                ))}
+                                {report.sections.map((section) => {
+                                    // Determine image URL for profile photo and cover photo sections
+                                    let imageUrl: string | undefined;
+                                    if (section.id === "profile-photo") imageUrl = report.profile_photo_url;
+                                    if (section.id === "cover-photo") imageUrl = report.cover_photo_url;
+
+                                    // Determine milestone text for connections/followers
+                                    let milestoneText: string | undefined;
+                                    if (section.id === "connections") milestoneText = getMilestoneText(report.connection_count, "connections");
+                                    if (section.id === "followers") milestoneText = getMilestoneText(report.follower_count, "followers");
+
+                                    return (
+                                        <div key={section.id} id={`section-${section.id}`}>
+                                            <SectionScoreCard
+                                                id={section.id}
+                                                title={section.title}
+                                                icon={iconMap[section.id] || <Camera className="h-5 w-5" />}
+                                                statusTone={section.status === "optimized" ? "success" : section.status === "needs_improvement" ? "warning" : "critical"}
+                                                scoreText={`${section.score}/${section.max_score}`}
+                                                currentStatusText={section.current_status}
+                                                analysisText={section.analysis}
+                                                showAIRewrite={!!section.ai_rewrite}
+                                                aiRewriteText={section.ai_rewrite}
+                                                aiRewriteTags={section.tags}
+                                                imageUrl={imageUrl}
+                                                milestoneText={milestoneText}
+                                            />
+                                        </div>
+                                    );
+                                })}
                             </div>
+
+                            {/* Inline Feedback Form */}
+                            {!feedbackSubmitted && (
+                                <Card variant="elevated" className="p-6">
+                                    <FeedbackForm
+                                        email={userEmail}
+                                        customerId={report.customer_id}
+                                        onSubmitSuccess={() => setFeedbackSubmitted(true)}
+                                    />
+                                </Card>
+                            )}
                         </motion.div>
                     </main>
                 </div>
             </Container>
+
+            {/* Feedback Popup Modal */}
+            <FeedbackModal
+                isOpen={feedbackModalOpen && !feedbackSubmitted}
+                onClose={() => setFeedbackModalOpen(false)}
+                email={userEmail}
+                customerId={report.customer_id}
+            />
         </PageShell>
     );
 }

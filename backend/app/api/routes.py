@@ -287,6 +287,47 @@ async def get_report(report_id: str):
             "url": "",
         }
     
+    # Extract profile photo, cover photo, phone, connection/follower counts
+    profile_photo_url = None
+    cover_photo_url = None
+    phone = None
+    connection_count = None
+    follower_count = None
+    report_generation_minutes = None
+    
+    if profile_info:
+        profile_photo_url = profile_info.get("profile_picture_url") or None
+        cover_photo_url = profile_info.get("cover_picture_url") or None
+        phone = profile_info.get("phone") or None
+        connection_count = profile_info.get("connection_count") or None
+        follower_count = profile_info.get("follower_count") or None
+        
+        # Calculate report generation time
+        try:
+            date_time_str = profile_info.get("date_time", "")
+            scoring_timestamp = scoring.get("timestamp", "")
+            if date_time_str and scoring_timestamp:
+                # Profile info uses format: "DD/MM/YYYY, HH:MM:SS AM/PM"
+                from datetime import datetime as dt
+                try:
+                    intake_time = dt.strptime(date_time_str, "%d/%m/%Y, %I:%M:%S %p")
+                except ValueError:
+                    intake_time = None
+                
+                # Scoring timestamp is ISO format
+                try:
+                    scoring_time = dt.fromisoformat(scoring_timestamp.replace("Z", "+00:00").replace("+00:00", ""))
+                except ValueError:
+                    scoring_time = None
+                
+                if intake_time and scoring_time:
+                    delta = (scoring_time - intake_time).total_seconds()
+                    report_generation_minutes = round(delta / 60, 1)
+                    if report_generation_minutes < 0:
+                        report_generation_minutes = None
+        except Exception:
+            pass
+    
     # Build sections
     sections = []
     
@@ -458,6 +499,13 @@ async def get_report(report_id: str):
         sections=sections,
         top_priorities=top_priorities,
         generated_at=datetime.utcnow(),
+        profile_photo_url=profile_photo_url,
+        cover_photo_url=cover_photo_url,
+        report_generation_minutes=report_generation_minutes,
+        connection_count=connection_count,
+        follower_count=follower_count,
+        phone=phone,
+        attempt_id=report_id,
     )
 
 

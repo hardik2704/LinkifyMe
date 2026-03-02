@@ -59,7 +59,7 @@ export interface ComparisonResponse {
 export interface IntakeRequest {
     linkedin_url: string;
     email: string;
-    phone?: string;
+    phone: string;
     target_group: string;
 }
 
@@ -70,6 +70,19 @@ export interface IntakeResponse {
     previous_attempts_count: number;
     message: string;
     status: string;
+}
+
+export interface FeedbackRequest {
+    email: string;
+    customer_id: string;
+    would_refer: number;
+    was_helpful: number;
+    suggestions?: string;
+}
+
+export interface FeedbackResponse {
+    success: boolean;
+    message: string;
 }
 
 // ============================================================================
@@ -140,6 +153,28 @@ export async function submitIntake(
     if (!response.ok) {
         const error = await response.json().catch(() => ({}));
         throw new Error(error.detail || "Failed to submit intake");
+    }
+
+    return response.json();
+}
+
+/**
+ * Submit feedback for a report
+ */
+export async function submitFeedback(
+    data: FeedbackRequest
+): Promise<FeedbackResponse> {
+    const response = await fetch(`${API_BASE}/api/feedback`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.detail || "Failed to submit feedback");
     }
 
     return response.json();

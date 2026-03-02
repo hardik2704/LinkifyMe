@@ -24,6 +24,7 @@ export default function IntakePage() {
     // Form state
     const [linkedinUrl, setLinkedinUrl] = useState("");
     const [email, setEmail] = useState("");
+    const [countryCode, setCountryCode] = useState("+91");
     const [phone, setPhone] = useState("");
     const [targetGroup, setTargetGroup] = useState("");
 
@@ -79,7 +80,7 @@ export default function IntakePage() {
             const data = await submitIntake({
                 linkedin_url: linkedinUrl,
                 email: email,
-                phone: phone || undefined,
+                phone: `${countryCode}${phone.replace(/\s/g, '')}`,
                 target_group: targetGroup,
             });
 
@@ -224,14 +225,40 @@ export default function IntakePage() {
                             </div>
 
                             <div>
-                                <Label htmlFor="phone">Phone Number (Optional)</Label>
-                                <Input
-                                    id="phone"
-                                    type="tel"
-                                    placeholder="+91 98765 43210"
-                                    value={phone}
-                                    onChange={(e) => setPhone(e.target.value)}
-                                />
+                                <Label htmlFor="phone" required>Phone Number</Label>
+                                <div className="flex gap-2">
+                                    <select
+                                        id="country-code"
+                                        value={countryCode}
+                                        onChange={(e) => setCountryCode(e.target.value)}
+                                        className="w-[90px] flex-shrink-0 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm transition-colors focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 appearance-none"
+                                        style={{ backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`, backgroundPosition: 'right 6px center', backgroundRepeat: 'no-repeat', backgroundSize: '16px' }}
+                                    >
+                                        <option value="+91">🇮🇳 +91</option>
+                                        <option value="+1">🇺🇸 +1</option>
+                                        <option value="+44">🇬🇧 +44</option>
+                                        <option value="+61">🇦🇺 +61</option>
+                                        <option value="+971">🇦🇪 +971</option>
+                                        <option value="+86">🇨🇳 +86</option>
+                                        <option value="+49">🇩🇪 +49</option>
+                                        <option value="+33">🇫🇷 +33</option>
+                                        <option value="+81">🇯🇵 +81</option>
+                                        <option value="+65">🇸🇬 +65</option>
+                                        <option value="+852">🇭🇰 +852</option>
+                                    </select>
+                                    <Input
+                                        id="phone"
+                                        type="tel"
+                                        placeholder="98765 43210"
+                                        value={phone}
+                                        onChange={(e) => setPhone(e.target.value)}
+                                        required
+                                        className="flex-1"
+                                    />
+                                </div>
+                                <p className="mt-1.5 text-xs text-slate-500">
+                                    Required for report access &amp; account security
+                                </p>
                             </div>
 
                             <div>

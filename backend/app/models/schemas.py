@@ -15,7 +15,7 @@ class IntakeRequest(BaseModel):
     
     linkedin_url: str = Field(..., description="LinkedIn profile URL")
     email: EmailStr = Field(..., description="User email address")
-    phone: Optional[str] = Field(None, description="Optional phone number")
+    phone: str = Field(..., description="Phone number with country code")
     target_group: Literal["recruiters", "clients", "vcs"] = Field(
         ..., description="Target audience for optimization"
     )
@@ -92,6 +92,13 @@ class ReportResponse(BaseModel):
     sections: list[SectionScore]
     top_priorities: list[str]
     generated_at: datetime
+    profile_photo_url: Optional[str] = None
+    cover_photo_url: Optional[str] = None
+    report_generation_minutes: Optional[float] = None
+    connection_count: Optional[str] = None
+    follower_count: Optional[str] = None
+    phone: Optional[str] = None
+    attempt_id: Optional[str] = None
 
 
 class ActivityLogEntry(BaseModel):

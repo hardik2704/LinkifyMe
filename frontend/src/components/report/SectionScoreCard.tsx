@@ -5,7 +5,7 @@ import { IconTile } from "@/components/ui/IconTile";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { AIRewriteCard } from "./AIRewriteCard";
-import { Pencil, Info } from "lucide-react";
+import { Pencil, Info, Camera } from "lucide-react";
 
 type StatusTone = "success" | "warning" | "critical";
 
@@ -22,6 +22,8 @@ interface SectionScoreCardProps {
     aiRewriteText?: string;
     aiRewriteTags?: string[];
     className?: string;
+    imageUrl?: string;
+    milestoneText?: string;
 }
 
 const statusLabels: Record<StatusTone, string> = {
@@ -43,6 +45,8 @@ export function SectionScoreCard({
     aiRewriteText,
     aiRewriteTags,
     className,
+    imageUrl,
+    milestoneText,
 }: SectionScoreCardProps) {
     return (
         <Card variant="elevated" className={cn("p-0 overflow-hidden", className)}>
@@ -64,6 +68,35 @@ export function SectionScoreCard({
                     <span className="text-lg text-slate-400">/{scoreText.split("/")[1]}</span>
                 </div>
             </div>
+
+            {/* Image display for profile photo / cover photo sections */}
+            {imageUrl && (
+                <div className="px-6 pb-2">
+                    <div className="flex items-center gap-2 text-xs font-semibold text-indigo-600 uppercase tracking-wider mb-2">
+                        <Camera className="h-3 w-3" />
+                        CURRENT IMAGE
+                    </div>
+                    <div className={cn(
+                        "rounded-xl border border-slate-200 overflow-hidden bg-slate-50",
+                        id === "cover-photo" ? "aspect-[3/1]" : "w-24 h-24 rounded-full mx-auto"
+                    )}>
+                        <img
+                            src={imageUrl}
+                            alt={`Current ${title}`}
+                            className="w-full h-full object-cover"
+                        />
+                    </div>
+                </div>
+            )}
+
+            {/* Milestone Progress */}
+            {milestoneText && (
+                <div className="mx-6 mb-2 px-4 py-2.5 rounded-xl bg-indigo-50 border border-indigo-100">
+                    <p className="text-xs font-medium text-indigo-700">
+                        🎯 {milestoneText}
+                    </p>
+                </div>
+            )}
 
             {/* Body */}
             <div className="p-6 grid md:grid-cols-2 gap-6">
