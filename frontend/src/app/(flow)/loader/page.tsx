@@ -138,10 +138,10 @@ export default function LoaderPage() {
                     setIsTerminal(true);
 
                     sessionStorage.setItem("linkify_attempt_id", reportId);
-                    console.log("[Loader] Redirecting to:", `/report?attempt_id=${reportId}`);
+                    console.log("[Loader] Redirecting to:", `/report?attempt_id=${reportId}&time=${elapsed}`);
 
                     // IMMEDIATE redirect - no setTimeout delay
-                    window.location.href = `/report?attempt_id=${reportId}`;
+                    window.location.href = `/report?attempt_id=${reportId}&time=${elapsed}`;
                     return;
                 }
 

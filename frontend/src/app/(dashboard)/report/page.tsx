@@ -346,8 +346,20 @@ export default function ReportPage() {
                                     <p className="text-slate-600">
                                         We&apos;ve analyzed <strong>{report.sections.length} key areas</strong> of your profile. Review the insights below to optimize your personal brand.
                                     </p>
-                                    {/* Report creation time badge */}
-                                    {report.report_generation_minutes !== undefined && report.report_generation_minutes !== null && (
+                                    {searchParams.get("time") ? (
+                                        <div className="flex items-center gap-1.5 mt-2 text-xs text-slate-500">
+                                            <div className="flex items-center justify-center w-4 h-4 rounded bg-green-500">
+                                                <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                                </svg>
+                                            </div>
+                                            <span>
+                                                Completed in <strong className="text-brand">
+                                                    {Math.floor(parseInt(searchParams.get("time") || "0") / 60)}:{(parseInt(searchParams.get("time") || "0") % 60).toString().padStart(2, '0')}
+                                                </strong>
+                                            </span>
+                                        </div>
+                                    ) : report.report_generation_minutes !== undefined && report.report_generation_minutes !== null && (
                                         <div className="flex items-center gap-1.5 mt-2 text-xs text-slate-500">
                                             <Clock className="h-3.5 w-3.5" />
                                             <span>
