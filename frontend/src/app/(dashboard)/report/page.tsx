@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { Camera, Image, Type, Users, UserPlus, User, Briefcase, GraduationCap, Award, Wrench, CheckCircle, Crown, Share2, Check, Clock, RefreshCw } from "lucide-react";
@@ -15,6 +15,14 @@ import { FeedbackModal } from "@/components/report/FeedbackModal";
 import { PasswordModal } from "@/components/report/PasswordModal";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+
+export const ReportContext = React.createContext<{
+    usedQuotes: Set<string>;
+    markQuoteUsed: (quote: string) => void;
+}>({
+    usedQuotes: new Set(),
+    markQuoteUsed: () => {},
+});
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -128,6 +136,12 @@ export default function ReportPage() {
     const [isSharedView, setIsSharedView] = useState(false);
     const [passwordVerified, setPasswordVerified] = useState(false);
     const [reportPhone, setReportPhone] = useState<string>("");
+
+    // HR Quote Tracking Context
+    const usedQuotesRef = useRef(new Set<string>());
+    const markQuoteUsed = useCallback((quoteGroup: string) => {
+        usedQuotesRef.current.add(quoteGroup);
+    }, []);
 
     const handleShareReport = useCallback(async () => {
         if (!currentAttemptId) return;
@@ -310,6 +324,7 @@ export default function ReportPage() {
     }
 
     return (
+        <ReportContext.Provider value={{ usedQuotes: usedQuotesRef.current, markQuoteUsed }}>
         <PageShell variant="dashboard">
             <TopNav
                 mode="dashboard"
@@ -470,5 +485,6 @@ export default function ReportPage() {
                 customerId={report.customer_id}
             />
         </PageShell>
+        </ReportContext.Provider>
     );
 }

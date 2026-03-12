@@ -5,6 +5,8 @@ import { IconTile } from "@/components/ui/IconTile";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { AIRewriteCard } from "./AIRewriteCard";
+import { useContext } from "react";
+import { ReportContext } from "@/app/(dashboard)/report/page";
 import { Pencil, Info, Camera, Target } from "lucide-react";
 
 type StatusTone = "success" | "warning" | "critical";
@@ -136,37 +138,31 @@ export function SectionScoreCard({
                         {/* Actionable Items */}
                         {(statusTone === "warning" || statusTone === "critical") && (
                             (() => {
+                                const { usedQuotes, markQuoteUsed } = useContext(ReportContext);
                                 const segments = analysisText.split(';').map(s => s.trim()).filter(Boolean);
                                 // Prioritize negative signals or insights
-                                let items = segments.filter(s => s.includes('(-') || s.toLowerCase().includes('missing') || s.toLowerCase().includes('insight'));
+                                let items = segments.filter(s => s.includes('(-') || s.toLowerCase().includes('missing') || s.toLowerCase().includes('insight') || s.toLowerCase().includes('lacks') || s.toLowerCase().includes('no '));
                                 if (items.length === 0 && segments.length > 0) {
                                     items = segments.slice(-2); // fallback
                                 }
 
                                 const getHRQuote = (text: string): { quote: string, company: string } | null => {
-                                    if (text.includes('keyword') || text.includes('search')) {
-                                        return { quote: "We actively use LinkedIn Recruiter search strings based on specific skill keywords. If they aren't explicitly on your profile, you simply don't exist to us.", company: "Google" };
-                                    }
-                                    if (text.includes('metric') || text.includes('number')) {
-                                        return { quote: "Don't just tell me what your job description was. Show me the impact you made with hard numbers. Metrics prove competence.", company: "Amazon" };
-                                    }
-                                    if (text.includes('missing')) {
-                                        return { quote: "Incomplete profiles often signal a lack of attention to detail or low intent in the job market. It's an easy filter for recruiters to pass on a candidate.", company: "Meta" };
-                                    }
-                                    if (text.includes('buzzword') || text.includes('cliche')) {
-                                        return { quote: "Everyone claims to be 'passionate' and 'results-driven'. Skip the fluff and give me concrete examples of your work.", company: "Stripe" };
-                                    }
-                                    if (text.includes('short') || text.includes('brief') || text.includes('length')) {
-                                        return { quote: "We only spend about 6-7 seconds scanning a profile initially. If there isn't enough context to hook us, we move on.", company: "Netflix" };
-                                    }
-                                    if (text.includes('long') || text.includes('dense')) {
-                                        return { quote: "Huge walls of text are immediately skipped. Bullet points and bolded key achievements are your best friend.", company: "Microsoft" };
-                                    }
-                                    if (text.includes('photo') && text.includes('professional')) {
-                                        return { quote: "It sounds superficial, but profiles with professional headshots receive 14x more profile views. It builds immediate trust.", company: "LinkedIn" };
-                                    }
-                                    if (text.includes('cover') && text.includes('photo')) {
-                                        return { quote: "A custom banner is prime real estate to show your personal brand or industry alignment at a single glance.", company: "HubSpot" };
+                                    const availableQuotes = [
+                                        { key: "keyword", match: (t: string) => t.includes('keyword') || t.includes('search'), quote: "We actively use LinkedIn Recruiter search strings based on specific skill keywords. If they aren't explicitly on your profile, you simply don't exist to us.", company: "Google" },
+                                        { key: "metric", match: (t: string) => t.includes('metric') || t.includes('number') || t.includes('quantif'), quote: "Don't just tell me what your job description was. Show me the impact you made with hard numbers. Metrics prove competence.", company: "Amazon" },
+                                        { key: "missing", match: (t: string) => t.includes('missing') || t.includes('lacks'), quote: "Incomplete profiles often signal a lack of attention to detail or low intent in the job market. It's an easy filter for recruiters to pass on a candidate.", company: "Meta" },
+                                        { key: "buzzword", match: (t: string) => t.includes('buzzword') || t.includes('cliche'), quote: "Everyone claims to be 'passionate' and 'results-driven'. Skip the fluff and give me concrete examples of your work.", company: "Stripe" },
+                                        { key: "short", match: (t: string) => t.includes('short') || t.includes('brief') || t.includes('length'), quote: "We only spend about 6-7 seconds scanning a profile initially. If there isn't enough context to hook us, we move on.", company: "Netflix" },
+                                        { key: "long", match: (t: string) => t.includes('long') || t.includes('dense'), quote: "Huge walls of text are immediately skipped. Bullet points and bolded key achievements are your best friend.", company: "Microsoft" },
+                                        { key: "photo", match: (t: string) => t.includes('photo') || t.includes('picture'), quote: "It sounds superficial, but profiles with professional headshots receive 14x more profile views. It builds immediate trust.", company: "LinkedIn" },
+                                        { key: "cover", match: (t: string) => t.includes('cover') || t.includes('background'), quote: "A custom banner is prime real estate to show your personal brand or industry alignment at a single glance.", company: "HubSpot" }
+                                    ];
+
+                                    for (const q of availableQuotes) {
+                                        if (q.match(text) && (!usedQuotes || !usedQuotes.has(q.key))) {
+                                            if (markQuoteUsed) markQuoteUsed(q.key);
+                                            return { quote: q.quote, company: q.company };
+                                        }
                                     }
                                     return null;
                                 };
@@ -174,19 +170,23 @@ export function SectionScoreCard({
                                 const generateActionableStep = (insight: string, sectionTitle: string) => {
                                     const text = insight.toLowerCase().replace(/\s*\([\+\-][0-9.]+\)/g, '').replace('hr insight:', '').trim();
 
-                                    let instruction = `Improve this area: ${text.charAt(0).toUpperCase() + text.slice(1)}.`;
+                                    let instruction = `Refine this area by addressing: ${text}.`;
 
-                                    if (text.includes('missing') && text.includes('keyword')) instruction = `Add relevant industry and role keywords to your ${sectionTitle} to improve searchability.`;
-                                    else if (text.includes('missing') && (text.includes('metric') || text.includes('number'))) instruction = `Include quantitative metrics or numbers to highlight the impact of your achievements.`;
-                                    else if (text.includes('missing')) instruction = `Add the missing ${text.replace(/.*missing /g, '').split(' ')[0]} to complete this section.`;
-                                    else if (text.includes('buzzword') || text.includes('cliche')) instruction = `Replace generic buzzwords with concrete, specific examples of your work.`;
-                                    else if (text.includes('short') || text.includes('brief') || text.includes('length')) instruction = `Expand your ${sectionTitle} to provide recruiters with more context about your background.`;
-                                    else if (text.includes('long') || text.includes('dense')) instruction = `Condense your ${sectionTitle} to make it more scannable and impactful for readers.`;
-                                    else if (text.includes('photo') && text.includes('professional')) instruction = `Upload a high-quality, professional headshot.`;
-                                    else if (text.includes('cover') && text.includes('photo')) instruction = `Add a background banner image that reflects your industry or personal brand.`;
-                                    else if (text.includes('contact') || text.includes('email')) instruction = `Include your professional contact information.`;
-                                    else if (text.startsWith('no ')) instruction = `Add a ${text.replace('no ', '')} to your profile.`;
-                                    else if (text.startsWith('lacks ')) instruction = `Include ${text.replace('lacks ', '')} to strengthen this section.`;
+                                    // Contextual mapping for high-value actions
+                                    if (text.includes('keyword')) instruction = `Inject relevant industry tools and role-specific keywords directly into your ${sectionTitle} to trigger Recruiter search algorithms.`;
+                                    else if ((text.includes('metric') || text.includes('number')) && sectionTitle.toLowerCase() === 'experience') instruction = `Quantify your professional impact. Replace generic duties with strict numbers (e.g., 'Grew revenue by X%', 'Managed team of Y').`;
+                                    else if (text.includes('metric') || text.includes('number')) instruction = `Quantify your achievements. Add precise metrics instead of vague statements to prove your competence.`;
+                                    else if (text.includes('missing')) instruction = `Your profile is omitting ${text.replace(/.*missing /g, '').split(' ')[0]}. Add this immediately to pass standard Recruiter completeness checks!`;
+                                    else if (text.includes('buzzword') || text.includes('cliche')) instruction = `Remove generic buzzwords. Frame your narrative around concrete methodologies instead of claiming you are 'passionate' or 'motivated'.`;
+                                    else if (text.includes('short') || text.includes('brief')) instruction = `Elaborate on your ${sectionTitle}. You need to provide sufficient context to hook a reader during their 6-second initial scan.`;
+                                    else if (text.includes('long') || text.includes('dense')) instruction = `Break down your dense ${sectionTitle} into punchy, scannable bullet points. Recruiters skip walls of text!`;
+                                    else if (text.includes('photo') || text.includes('picture')) instruction = `Upload a high-quality, professional headshot. Visually complete profiles get vastly more traction.`;
+                                    else if (text.includes('contact') || text.includes('email')) instruction = `Surface your professional contact information so interested parties can actually reach you.`;
+                                    else if (text.startsWith('no ')) instruction = `You have 0 ${text.replace('no ', '')}. Build this out to strengthen your credibility in the field.`;
+                                    else if (text.startsWith('lacks ')) instruction = `Incorporate ${text.replace('lacks ', '')} to meet the baseline expectations for this section.`;
+                                    else if (text.includes('seniority')) instruction = `Ensure your exact seniority level is instantly discernible so recruiters don't miscategorize your tier.`;
+                                    else if (text.includes('education') || text.includes('degree')) instruction = `Expand your academic credentials. Add details about your college life, honors, or thesis so employers understand your foundational knowledge.`;
+                                    else if (text.includes('value')) instruction = `Show what value you directly add! Shift focus from 'what my duties were' to 'what measurable impact I delivered'.`;
 
                                     const hrQuote = getHRQuote(text);
                                     return { instruction, hrQuote };
