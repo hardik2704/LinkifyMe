@@ -645,20 +645,36 @@ const RecruiterInsights: React.FC = () => {
 // ============================================================================
 const faqs = [
     {
-        question: "Is this cheating?",
-        answer: "No. It's engineering. We use the same algorithms LinkedIn uses to rank profiles, but in reverse to optimize yours."
+        question: "What does LinkifyMe analyze?",
+        answer: "We review your headline, summary, experience, skills, positioning, and overall profile strength to generate actionable recommendations."
     },
     {
         question: "How long does the audit take?",
-        answer: "Less than 2 minutes. Our AI infrastructure analyzes 50+ data points and generates a comprehensive report."
+        answer: "Most reports are ready within a few minutes, though deeper analysis may take slightly longer."
     },
     {
-        question: "Will my current employer know?",
-        answer: "We operate in stealth mode. No notifications are sent. Your optimization process is completely private."
+        question: "Do I need to log in with LinkedIn?",
+        answer: "No. You do not need to share your LinkedIn password to use LinkifyMe. You simply submit your profile URL and receive your analysis report."
+    },
+    {
+        question: "Is my data safe?",
+        answer: "We take privacy seriously. Your profile URL and related analysis data are used only to generate your report and support the service, according to our Privacy Policy."
+    },
+    {
+        question: "Will my employer or network know?",
+        answer: "No. Your analysis is private and is not shared with your employer, network, or LinkedIn contacts."
+    },
+    {
+        question: "Is this cheating?",
+        answer: "No. LinkifyMe helps you improve how your real experience is presented. It is about better positioning, not manipulation."
     },
     {
         question: "What is the SSI Score?",
-        answer: "Social Selling Index. It's the hidden metric LinkedIn uses to decide who sees your content. We help you max it out."
+        answer: "SSI stands for Social Selling Index, a LinkedIn measure of professional brand strength and engagement. LinkifyMe helps you improve many of the profile elements that contribute to a stronger presence."
+    },
+    {
+        question: "Will this guarantee results?",
+        answer: "No tool can guarantee outcomes. LinkifyMe helps you improve the quality, clarity, and discoverability of your profile so you can put your best professional version forward."
     }
 ];
 
@@ -669,10 +685,10 @@ const FAQ: React.FC = () => {
         <section id="faq" className="py-32 relative overflow-hidden">
             <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
                 <div className="text-center mb-16">
-                    <h2 className="text-3xl md:text-4xl font-bold text-rich-black mb-4 tracking-tight">
-                        Protocol <span className="text-brand">Details</span>
+                    <h2 className="text-3xl md:text-5xl font-bold text-rich-black mb-6 tracking-tight">
+                        Frequently Asked <span className="text-brand">Questions</span>
                     </h2>
-                    <p className="text-gray-500">Everything you need to know about the system.</p>
+                    <p className="text-slate-500 text-lg font-medium">Everything you need to know before analyzing your profile.</p>
                 </div>
 
                 <div className="space-y-4">
