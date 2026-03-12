@@ -15,14 +15,7 @@ import { FeedbackModal } from "@/components/report/FeedbackModal";
 import { PasswordModal } from "@/components/report/PasswordModal";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-
-export const ReportContext = React.createContext<{
-    usedQuotes: Set<string>;
-    markQuoteUsed: (quote: string) => void;
-}>({
-    usedQuotes: new Set(),
-    markQuoteUsed: () => {},
-});
+import { ReportContext } from "@/context/ReportContext";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 

@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { AIRewriteCard } from "./AIRewriteCard";
 import { useContext } from "react";
-import { ReportContext } from "@/app/(dashboard)/report/page";
+import { ReportContext } from "@/context/ReportContext";
 import { Pencil, Info, Camera, Target } from "lucide-react";
 
 type StatusTone = "success" | "warning" | "critical";
