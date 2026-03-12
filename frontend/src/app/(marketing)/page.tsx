@@ -450,28 +450,28 @@ const features = [
         title: "Recruiter-Vetted Logic",
         description: "Built on direct interviews with 50+ Top HRs from FAANG. We know exactly what triggers a 'Yes'.",
         icon: Shield,
-        className: "md:col-span-2 md:row-span-2 bg-slate-900 text-white",
+        className: "md:col-span-2 bg-slate-900 text-white shadow-2xl shadow-slate-900/20",
         iconContainer: "bg-white/10 text-white",
     },
     {
         title: "Instant Velocity",
         description: "Audit delivered in <2s with edge-powered neural analysis.",
         icon: Zap,
-        className: "md:col-span-1 md:row-span-1 border-brand/20 bg-brand/5 group-hover:bg-brand group-hover:text-white transition-all duration-500",
+        className: "md:col-span-1 border-brand/20 bg-brand/5 group-hover:bg-brand group-hover:text-white transition-all duration-500",
         iconContainer: "bg-brand/10 text-brand group-hover:bg-white group-hover:text-brand",
     },
     {
         title: "6s Optimization",
         description: "Engineering your profile for the critical 6-second recruiter glance.",
         icon: Cpu,
-        className: "md:col-span-1 md:row-span-1",
+        className: "md:col-span-1 bg-white",
         iconContainer: "bg-brand/5 text-brand",
     },
     {
         title: "Global Benchmarking",
         description: "See where you rank against the top 1% of your global industry peers.",
         icon: Globe,
-        className: "md:col-span-2 md:row-span-1 flex-row items-center",
+        className: "md:col-span-2 bg-white flex-row items-center",
         iconContainer: "bg-brand/5 text-brand",
     }
 ];
@@ -496,7 +496,7 @@ const FeatureCard = ({ feature, i }: { feature: typeof features[0]; i: number })
             viewport={{ once: true }}
             transition={{ delay: i * 0.1 }}
             onMouseMove={handleMouseMove}
-            className={`group relative overflow-hidden rounded-[2rem] border border-slate-200 bg-white p-10 hover:border-brand/30 hover:shadow-2xl transition-all duration-500 ${feature.className}`}
+            className={`group relative overflow-hidden rounded-[2rem] border border-slate-200 p-10 hover:border-brand/30 hover:shadow-2xl transition-all duration-500 ${feature.className}`}
         >
             <div className="pointer-events-none absolute -inset-px opacity-0 transition duration-300 group-hover:opacity-100">
                 <motion.div
@@ -539,7 +539,7 @@ const Features: React.FC = () => {
                     </p>
                 </motion.div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 md:grid-rows-2 gap-8 h-auto">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                     {features.map((feature, i) => (
                         <FeatureCard key={i} feature={feature} i={i} />
                     ))}
