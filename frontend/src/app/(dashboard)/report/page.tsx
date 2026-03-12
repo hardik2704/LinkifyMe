@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { Camera, Image, Type, Users, UserPlus, User, Briefcase, GraduationCap, Award, Wrench, CheckCircle, Crown, Share2, Check, Clock, RefreshCw } from "lucide-react";
+import { Camera, Image as ImageIcon, Type, Users, UserPlus, User, Briefcase, GraduationCap, Award, Wrench, CheckCircle, Crown, Share2, Check, Clock, RefreshCw } from "lucide-react";
 import { PageShell } from "@/components/layout/PageShell";
 import { TopNav } from "@/components/layout/TopNav";
 import { Container } from "@/components/layout/Container";
@@ -29,7 +29,7 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 // Icon mapping for all 12 sections
 const iconMap: Record<string, React.ReactNode> = {
     "profile-photo": <Camera className="h-5 w-5" />,
-    "cover-photo": <Image className="h-5 w-5" />,
+    "cover-photo": <ImageIcon className="h-5 w-5" />,
     "headline": <Type className="h-5 w-5" />,
     "connections": <Users className="h-5 w-5" />,
     "followers": <UserPlus className="h-5 w-5" />,

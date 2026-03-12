@@ -50,6 +50,8 @@ export function SectionScoreCard({
     imageUrl,
     milestoneText,
 }: SectionScoreCardProps) {
+    const { usedQuotes, markQuoteUsed } = useContext(ReportContext);
+
     return (
         <Card variant="elevated" className={cn("p-0 overflow-hidden", className)}>
             {/* Header */}
@@ -138,7 +140,6 @@ export function SectionScoreCard({
                         {/* Actionable Items */}
                         {(statusTone === "warning" || statusTone === "critical") && (
                             (() => {
-                                const { usedQuotes, markQuoteUsed } = useContext(ReportContext);
                                 const segments = analysisText.split(';').map(s => s.trim()).filter(Boolean);
                                 // Prioritize negative signals or insights
                                 let items = segments.filter(s => s.includes('(-') || s.toLowerCase().includes('missing') || s.toLowerCase().includes('insight') || s.toLowerCase().includes('lacks') || s.toLowerCase().includes('no '));
