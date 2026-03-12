@@ -36,7 +36,14 @@ class ExperienceScorer(BaseSectionScorer):
             return self._result(1.5, ["No experience entries"], signals)
         
         score = 1.0
-        pos_count = len(positions)
+        pos_count = 0
+        for exp in positions:
+            nested = exp.get("positions", [])
+            if nested:
+                pos_count += len(nested)
+            else:
+                pos_count += 1
+                
         signals["position_count"] = pos_count
         
         # Position count
@@ -53,11 +60,19 @@ class ExperienceScorer(BaseSectionScorer):
         # Aggregate all descriptions
         all_descriptions = ""
         positions_with_desc = 0
-        for pos in positions[:5]:  # Analyze first 5
-            desc = pos.get("description", "") or ""
-            if len(desc) > 20:
-                positions_with_desc += 1
-            all_descriptions += " " + desc
+        for exp in positions[:5]:  # Analyze first 5 (companies)
+            nested_positions = exp.get("positions", [])
+            if nested_positions:
+                for pos in nested_positions:
+                    desc = pos.get("description", "") or ""
+                    if len(desc) > 20:
+                        positions_with_desc += 1
+                    all_descriptions += " " + desc
+            else:
+                desc = exp.get("description", "") or ""
+                if len(desc) > 20:
+                    positions_with_desc += 1
+                all_descriptions += " " + desc
         
         signals["positions_with_description"] = positions_with_desc
         
@@ -100,7 +115,13 @@ class ExperienceScorer(BaseSectionScorer):
         
         # Title standardization (current role)
         if positions:
-            current_title = positions[0].get("title", "")
+            current_title = ""
+            nested = positions[0].get("positions", [])
+            if nested:
+                current_title = nested[0].get("title", "")
+            else:
+                current_title = positions[0].get("title", "")
+                
             if is_standard_title(current_title):
                 score += 0.5
                 reasons.append("Clear, standard job title")

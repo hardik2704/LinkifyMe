@@ -108,6 +108,19 @@ def write_scores(state: LinkifyState) -> LinkifyState:
     # Build Remarks string with breakdown
     remarks = f"Weighted Score: {final_weighted_score}/100 | " + " | ".join(contributions)
     
+    # Calculate completion time
+    completed_within_seconds = 0
+    activity_log = state.get("activity_log", [])
+    if activity_log:
+        try:
+            # Find the very first event to get true start time
+            start_event = activity_log[0]
+            start_time = datetime.fromisoformat(start_event["timestamp"].replace("Z", "+00:00"))
+            now = datetime.utcnow()
+            completed_within_seconds = round((now - start_time).total_seconds(), 1)
+        except Exception:
+            pass
+
     # Build update dict matching the column structure
     update_data = {
         "customer_id": state.get("customer_id", ""),
@@ -145,6 +158,7 @@ def write_scores(state: LinkifyState) -> LinkifyState:
         "timestamp": datetime.utcnow().isoformat(),
         "completion_status": "completed",
         "remarks": remarks,  # Contribution breakdown
+        "completed_within_seconds": completed_within_seconds,
     }
     
     sheets.update_profile_scoring(ps_row, update_data)

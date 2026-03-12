@@ -555,14 +555,14 @@ class GoogleSheetsService:
     def update_profile_scoring(self, row: int, updates: dict[str, Any]) -> None:
         """Update specific columns in a Profile Scoring row.
         
-        Column structure matches user's required 31-column format:
+        Column structure matches user's required 32-column format:
         User ID | Attempt ID | LinkedIn Profile | First Name | Headline Score | Connection Score | 
         Follower Score | About Score | Profile Pic Score | Cover_picture Score | 
         Experience Score | Education Score | Skills Score | Licenses & Certifications Score | 
         Is Verified Score | Is Premium Score | Final Score | Headline Reasoning | 
         Connection Reasoning | Follower Reasoning | About Reasoning | Profile Pic Reasoning | 
         Cover_picture Reasoning | Experience Reasoning | Education Reasoning | Skills Reasoning | 
-        Licenses & Certifications Reasoning | Final Score Reasoning | TimeStamp | Completion Status | Remarks
+        Licenses & Certifications Reasoning | Final Score Reasoning | TimeStamp | Completion Status | Remarks | Completed within (Seconds)
         """
         import logging
         logger = logging.getLogger("linkify.sheets")
@@ -603,6 +603,7 @@ class GoogleSheetsService:
             "timestamp": 29,
             "completion_status": 30,
             "remarks": 31,
+            "completed_within_seconds": 32,
         }
         
         try:
@@ -994,12 +995,11 @@ class GoogleSheetsService:
         """
         Store user feedback in the Feedback sheet.
         
-        Columns: Timestamp | Email | Customer ID | Would Refer (1-5) | Was Helpful (1-5) | Suggestions
+        Columns: Timestamp | User ID | Would Refer (1-5) | Was Helpful (1-5) | Suggestions
         """
         headers = [
             "Timestamp",
-            "Email",
-            "Customer ID",
+            "User ID",
             "Would Refer (1-5)",
             "Was Helpful (1-5)",
             "Suggestions",
@@ -1009,7 +1009,6 @@ class GoogleSheetsService:
         
         row_data = [
             datetime.utcnow().isoformat(),
-            email,
             customer_id,
             would_refer,
             was_helpful,

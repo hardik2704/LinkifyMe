@@ -23,6 +23,13 @@ class SkillsScorer(BaseSectionScorer):
     
     def score(self, profile: dict) -> dict:
         skills = profile.get("skills", []) or []
+        import json
+        if isinstance(skills, str):
+            try:
+                skills = json.loads(skills)
+            except Exception:
+                skills = []
+                
         reasons = []
         signals = {}
         

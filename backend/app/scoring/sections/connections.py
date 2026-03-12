@@ -23,10 +23,10 @@ class ConnectionsScorer(BaseSectionScorer):
         (250, 4.0),
         (350, 5.0),
         (500, 6.0), # 500+ is typically shown as "500+"
-        (1000, 7.0),  
-        (2000, 8.0),
-        (5000, 9.0),
-        (10000, 10.0),
+        (700, 7.0),  
+        (800, 8.0),
+        (1000, 9.0),
+        (2000, 10.0),
     ]
     
     def score(self, profile: dict) -> dict:

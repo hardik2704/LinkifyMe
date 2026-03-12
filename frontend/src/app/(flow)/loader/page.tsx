@@ -171,30 +171,12 @@ export default function LoaderPage() {
             }
         };
 
-        // Handle visibility change - pause/resume polling when tab hidden/visible
-        const handleVisibilityChange = () => {
-            if (document.hidden) {
-                // Tab hidden - stop polling to save resources
-                if (pollTimeoutRef.current) {
-                    clearTimeout(pollTimeoutRef.current);
-                    pollTimeoutRef.current = null;
-                }
-            } else {
-                // Tab visible again - immediately poll if not terminal
-                if (!isTerminalRef.current && !pollTimeoutRef.current) {
-                    console.log("[Loader] Tab visible - resuming poll");
-                    poll();
-                }
-            }
-        };
-
-        document.addEventListener("visibilitychange", handleVisibilityChange);
-
+        // Removed: Document visibility checker. Proceed pulling on the background!
         // Initial poll
         poll();
 
         return () => {
-            document.removeEventListener("visibilitychange", handleVisibilityChange);
+            // Keep cleanup strictly to ongoing timeouts.
             if (pollTimeoutRef.current) {
                 clearTimeout(pollTimeoutRef.current);
             }

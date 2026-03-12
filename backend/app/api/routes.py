@@ -111,7 +111,7 @@ async def start_intake(
     existing_user = sheets.find_user_by_linkedin_url(request.linkedin_url)
     is_returning_user = existing_user is not None
     user_id = existing_user[1]["user_id"] if existing_user else None
-    previous_attempts = existing_user[1].get("total_attempts", 0) if existing_user else 0
+    previous_attempts = len(sheets.get_user_attempts(user_id)) if is_returning_user else 0
     
     log_event("intake", "received", f"New analysis request for {request.linkedin_url}", {
         "unique_id": state["unique_id"],
@@ -303,28 +303,29 @@ async def get_report(report_id: str):
         follower_count = profile_info.get("follower_count") or None
         
         # Calculate report generation time
+        completed_seconds = scoring.get("completed_within_seconds")
         try:
-            date_time_str = profile_info.get("date_time", "")
-            scoring_timestamp = scoring.get("timestamp", "")
-            if date_time_str and scoring_timestamp:
-                # Profile info uses format: "DD/MM/YYYY, HH:MM:SS AM/PM"
-                from datetime import datetime as dt
-                try:
-                    intake_time = dt.strptime(date_time_str, "%d/%m/%Y, %I:%M:%S %p")
-                except ValueError:
-                    intake_time = None
-                
-                # Scoring timestamp is ISO format
-                try:
-                    scoring_time = dt.fromisoformat(scoring_timestamp.replace("Z", "+00:00").replace("+00:00", ""))
-                except ValueError:
-                    scoring_time = None
-                
-                if intake_time and scoring_time:
-                    delta = (scoring_time - intake_time).total_seconds()
-                    report_generation_minutes = round(delta / 60, 1)
-                    if report_generation_minutes < 0:
-                        report_generation_minutes = None
+            if completed_seconds is not None and str(completed_seconds).strip() != "":
+                report_generation_minutes = float(completed_seconds) / 60.0
+            else:
+                date_time_str = profile_info.get("date_time", "")
+                scoring_timestamp = scoring.get("timestamp", "")
+                if date_time_str and scoring_timestamp:
+                    from datetime import datetime as dt
+                    try:
+                        intake_time = dt.strptime(date_time_str, "%d/%m/%Y, %I:%M:%S %p")
+                    except ValueError:
+                        intake_time = None
+                    try:
+                        scoring_time = dt.fromisoformat(scoring_timestamp.replace("Z", "+00:00").replace("+00:00", ""))
+                    except ValueError:
+                        scoring_time = None
+                    
+                    if intake_time and scoring_time:
+                        delta = (scoring_time - intake_time).total_seconds()
+                        report_generation_minutes = round(delta / 60, 2)
+                        if report_generation_minutes < 0:
+                            report_generation_minutes = None
         except Exception:
             pass
     
@@ -353,9 +354,15 @@ async def get_report(report_id: str):
         if isinstance(exprs, str): exprs = safe_parse_json(exprs)
         text_items = []
         for exp in exprs[:5]:
-            title = exp.get("title", "")
-            company = exp.get("companyName", "") or exp.get("subtitle", "")
-            text_items.append(f"• {title} at {company}")
+            company = exp.get("companyName", "") or exp.get("subtitle", "") or (exp.get("company", {}).get("name", "") if isinstance(exp.get("company"), dict) else "")
+            nested_positions = exp.get("positions", [])
+            if nested_positions:
+                for pos in nested_positions[:2]:
+                    title = pos.get("title", "")
+                    text_items.append(f"• {title} at {company}")
+            else:
+                title = exp.get("title", "")
+                text_items.append(f"• {title} at {company}")
         return "\n".join(text_items) + ("\n..." if len(exprs) > 5 else "") if text_items else None
 
     def format_education(edus):
@@ -372,7 +379,13 @@ async def get_report(report_id: str):
     def format_skills(skills):
         if not skills: return None
         if isinstance(skills, str): skills = safe_parse_json(skills)
-        skill_names = [s.get("name", s) if isinstance(s, dict) else str(s) for s in skills]
+        skill_names = []
+        for s in skills:
+            if isinstance(s, dict):
+                skill_names.append(str(s.get("name", "")))
+            else:
+                skill_names.append(str(s))
+        skill_names = [s for s in skill_names if s]
         return ", ".join(skill_names[:15]) + ("..." if len(skill_names) > 15 else "") if skill_names else None
 
     def format_certs(certs):
@@ -1000,7 +1013,7 @@ async def lookup_user(linkedin_url: str = None, email: str = None):
                 email=user_data["email"],
                 phone=user_data.get("phone"),
                 name=user_data.get("name"),
-                total_attempts=user_data.get("total_attempts", 0),
+                total_attempts=len(sheets.get_user_attempts(user_data["user_id"])),
                 last_attempt_at=user_data.get("last_attempt_at"),
                 created_at=user_data.get("created_at"),
             ),
@@ -1038,7 +1051,7 @@ async def get_user_attempts(user_id: str):
             email=user_data["email"],
             phone=user_data.get("phone"),
             name=user_data.get("name"),
-            total_attempts=user_data.get("total_attempts", 0),
+            total_attempts=len(attempts),
             last_attempt_at=user_data.get("last_attempt_at"),
             created_at=user_data.get("created_at"),
         ),
