@@ -17,6 +17,9 @@ const outfit = Outfit({
 export const metadata: Metadata = {
   title: "LinkifyMe - LinkedIn Profile Optimizer",
   description: "Get AI-powered insights to boost your LinkedIn profile and attract more opportunities.",
+  icons: {
+    icon: "/favicon.png",
+  },
 };
 
 export default function RootLayout({

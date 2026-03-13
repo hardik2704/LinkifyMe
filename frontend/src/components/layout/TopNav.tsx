@@ -44,11 +44,11 @@ export function TopNav({ mode = "marketing", onShare, isShared, onMenuToggle }: 
                         )}
                         <Link href="/" className="flex items-center gap-2">
                             <Image
-                                src="/logos/LinkifyMe_Logo_HomePage.svg"
+                                src="/logos/linkifyme-full.png"
                                 alt="LinkifyMe"
-                                width={240}
-                                height={120}
-                                className="h-20 w-auto"
+                                width={180}
+                                height={60}
+                                className="h-10 md:h-12 w-auto"
                             />
                         </Link>
                     </div>
@@ -86,11 +86,11 @@ export function TopNav({ mode = "marketing", onShare, isShared, onMenuToggle }: 
                 >
                     <Link href="/" className="flex items-center gap-2">
                         <Image
-                            src="/logos/LinkifyMe_Logo_HomePage.svg"
+                            src="/logos/linkifyme-full.png"
                             alt="LinkifyMe"
-                            width={80}
+                            width={120}
                             height={40}
-                            className="h-8 w-auto"
+                            className="h-8 md:h-10 w-auto"
                         />
                     </Link>
                     <div className="flex items-center gap-4">

@@ -116,9 +116,9 @@ const Navbar: React.FC = () => {
                             {!isScrolled ? (
                                 <motion.img
                                     key="full-logo"
-                                    src="/logos/LinkifyMe_Logo_HomePage.svg"
+                                    src="/logos/linkifyme-full.png"
                                     alt="LinkifyMe"
-                                    className="h-32 md:h-40 w-auto object-contain"
+                                    className="h-12 md:h-16 w-auto object-contain"
                                     initial={{ opacity: 0, scale: 0.8, rotateX: -90 }}
                                     animate={{ opacity: 1, scale: 1, rotateX: 0 }}
                                     exit={{ opacity: 0, scale: 0.8, rotateX: 90 }}
@@ -129,7 +129,7 @@ const Navbar: React.FC = () => {
                                     key="icon-logo"
                                     src="/logos/linkifyme-icon.png"
                                     alt="Li"
-                                    className="h-10 md:h-12 w-auto object-contain"
+                                    className="h-8 md:h-10 w-auto object-contain"
                                     initial={{ opacity: 0, scale: 0.8, rotateX: -90 }}
                                     animate={{ opacity: 1, scale: 1, rotateX: 0 }}
                                     exit={{ opacity: 0, scale: 0.8, rotateX: 90 }}
