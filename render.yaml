@@ -1,12 +1,13 @@
 # render.yaml - Render Blueprint
-# This defines your service configuration
+# This defines your service configuration for the LinkifyMe monorepo
 
 services:
   - type: web
     name: linkifyme-backend
     runtime: python
-    region: oregon  # or singapore for lower latency in India
-    plan: free      # Free tier
+    rootDir: backend
+    region: singapore
+    plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:
@@ -30,4 +31,4 @@ services:
       - key: PDFSHIFT_API_KEY
         sync: false
     healthCheckPath: /health
-    autoDeploy: true  # Auto deploy on git push
+    autoDeploy: true

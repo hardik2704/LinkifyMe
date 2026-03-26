@@ -40,22 +40,21 @@ app = FastAPI(
 )
 
 # CORS middleware
+# NOTE: allow_origins expects exact origin strings.
+# Subdomain wildcards (*.vercel.app) must use allow_origin_regex.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:3000",      # Next.js dev server
-        "http://localhost:3001",      # Next.js dev server alternate port
+        "https://linkifyme.com",
+        "https://www.linkifyme.com",
+        "http://localhost:3000",
+        "http://localhost:3001",
         "http://127.0.0.1:3000",
         "http://127.0.0.1:3001",
-        "https://linkifyme.com",       # Production domain
-        "https://www.linkifyme.com",   # Production domain (www)
-        "https://*.vercel.app",        # Vercel preview deployments
-        "https://linkifyme.vercel.app",  # Vercel production
-        "https://linkifyme-frontend.onrender.com",  # Render frontend
-        "https://*.onrender.com",      # Render deployments
     ],
+    allow_origin_regex=r"https://.*\.vercel\.app|https://.*\.onrender\.com",
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allow_methods=["*"],
     allow_headers=["*"],
 )
 
