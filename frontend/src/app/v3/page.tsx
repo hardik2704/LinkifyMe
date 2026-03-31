@@ -679,7 +679,7 @@ function Stories() {
               className="flex-shrink-0 w-[380px] p-8 rounded-2xl bg-white border border-black/5 shadow-sm hover:shadow-md transition-shadow group"
             >
               <p className="text-lg text-gray-700 font-medium mb-6 leading-relaxed group-hover:text-rich-black transition-colors">
-                "{s.text}"
+                &quot;{s.text}&quot;
               </p>
               <div className="flex items-center">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
