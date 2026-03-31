@@ -266,7 +266,7 @@ function ReportPageInner() {
             if (!feedbackSubmitted) {
                 setFeedbackModalOpen(true);
             }
-        }, 60000);
+        }, 120000);
 
         return () => clearTimeout(timer);
     }, [loading, feedbackSubmitted]);
