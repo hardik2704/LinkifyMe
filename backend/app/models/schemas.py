@@ -40,6 +40,14 @@ class PaymentWebhookRequest(BaseModel):
     amount: Optional[float] = Field(None, description="Payment amount")
 
 
+class PaymentConfirmRequest(BaseModel):
+    """Request body for payment confirmation after Razorpay."""
+    
+    unique_id: str = Field(..., description="LinkifyMe unique ID from intake")
+    rb_unique_id: Optional[str] = Field(None, description="RentBasket unique ID")
+    payment_status: Literal["succeeded", "failed"] = Field(..., description="Payment result")
+
+
 # === Response Schemas ===
 
 class IntakeResponse(BaseModel):
@@ -51,6 +59,8 @@ class IntakeResponse(BaseModel):
     previous_attempts_count: int = 0
     message: str = "Analysis started"
     status: str = "pending"
+    payment_link: Optional[str] = None  # Razorpay payment URL from RentBasket
+    rb_unique_id: Optional[str] = None  # RentBasket unique ID for payment tracking
 
 
 class StatusResponse(BaseModel):

@@ -113,7 +113,7 @@ export default function IntakePage() {
                 target_group: targetGroup,
             });
 
-            // Store user info for loader page
+            // Store user info for downstream pages
             sessionStorage.setItem("linkify_unique_id", data.unique_id);
             if (data.user_id) {
                 sessionStorage.setItem("linkify_user_id", data.user_id);
@@ -123,7 +123,20 @@ export default function IntakePage() {
                 sessionStorage.setItem("linkify_previous_attempts", String(data.previous_attempts_count));
             }
 
-            router.push("/loader");
+            // Store payment info
+            if (data.payment_link) {
+                sessionStorage.setItem("linkify_payment_link", data.payment_link);
+            }
+            if (data.rb_unique_id) {
+                sessionStorage.setItem("linkify_rb_unique_id", data.rb_unique_id);
+            }
+
+            // Store user details for the payment page
+            sessionStorage.setItem("linkify_email", email);
+            sessionStorage.setItem("linkify_linkedin_url", linkedinUrl);
+
+            // Redirect to payment page (scraping has already started in the background)
+            router.push("/payment");
 
         } catch (err) {
             setError(err instanceof Error ? err.message : "Something went wrong");

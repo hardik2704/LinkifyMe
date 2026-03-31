@@ -1,9 +1,9 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { XCircle, ArrowRight } from "lucide-react";
+import { XCircle, ArrowRight, RefreshCw, ExternalLink } from "lucide-react";
 import { PageShell } from "@/components/layout/PageShell";
 import { Container } from "@/components/layout/Container";
 import { GlassPanel } from "@/components/ui/GlassPanel";
@@ -12,11 +12,41 @@ import { Button } from "@/components/ui/Button";
 function FailureContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
+    const [paymentLink, setPaymentLink] = useState<string | null>(null);
+    const [isRedirecting, setIsRedirecting] = useState(false);
 
-    const handleTryAgain = () => {
+    useEffect(() => {
+        // Try to recover the payment link from sessionStorage
+        const storedPaymentLink = sessionStorage.getItem("linkify_payment_link");
+        if (storedPaymentLink) {
+            setPaymentLink(storedPaymentLink);
+        }
+    }, []);
+
+    const handleRetryPayment = () => {
+        if (paymentLink) {
+            // Retry with the same payment link (no need to create a new lead)
+            setIsRedirecting(true);
+            setTimeout(() => {
+                window.location.href = paymentLink;
+            }, 300);
+        } else {
+            // No payment link available — go back to intake
+            handleStartOver();
+        }
+    };
+
+    const handleStartOver = () => {
         // Construct the redirect URL with existing params + reattempt=true
         const params = new URLSearchParams(searchParams.toString());
         params.set("reattempt", "true");
+
+        // Try to preserve linkedin_url and email for the retry
+        const linkedinUrl = sessionStorage.getItem("linkify_linkedin_url");
+        const email = sessionStorage.getItem("linkify_email");
+        if (linkedinUrl) params.set("linkedin_url", linkedinUrl);
+        if (email) params.set("email", email);
+
         router.push(`/intake?${params.toString()}`);
     };
 
@@ -46,17 +76,43 @@ function FailureContent() {
                             Payment Failed
                         </h1>
                         <p className="text-gray-600 mb-8 leading-relaxed">
-                            Don't worry! Your data is safe. We couldn't process your payment. Please try again with a different payment method.
+                            Don&apos;t worry! Your data is safe. We couldn&apos;t process your payment. Please try again with a different payment method.
                         </p>
 
-                        <div className="w-full" onClick={handleTryAgain}>
-                            <Button 
-                                size="lg" 
-                                className="w-full bg-red-600 hover:bg-red-700 text-white border-transparent flex items-center justify-center gap-2"
-                            >
-                                Try Again <ArrowRight className="w-4 h-4" />
-                            </Button>
+                        <div className="space-y-3">
+                            {/* Retry with same payment link */}
+                            {paymentLink && (
+                                <div onClick={handleRetryPayment}>
+                                    <Button 
+                                        size="lg" 
+                                        className="w-full flex items-center justify-center gap-2"
+                                        isLoading={isRedirecting}
+                                        rightIcon={!isRedirecting && <ExternalLink className="w-4 h-4" />}
+                                    >
+                                        {isRedirecting ? "Redirecting..." : "Retry Payment"}
+                                    </Button>
+                                </div>
+                            )}
+
+                            {/* Start over */}
+                            <div onClick={handleStartOver}>
+                                <Button 
+                                    size="lg" 
+                                    variant="outline"
+                                    className="w-full flex items-center justify-center gap-2"
+                                >
+                                    <RefreshCw className="w-4 h-4" />
+                                    Start Over
+                                </Button>
+                            </div>
                         </div>
+
+                        <p className="text-xs text-slate-500 mt-6">
+                            Having trouble? Contact us at{" "}
+                            <a href="mailto:support@linkifyme.com" className="text-brand hover:underline">
+                                support@linkifyme.com
+                            </a>
+                        </p>
                     </GlassPanel>
                 </motion.div>
             </Container>

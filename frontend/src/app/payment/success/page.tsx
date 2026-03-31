@@ -1,24 +1,57 @@
 "use client";
 
-import { useEffect, Suspense } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { CheckCircle2, Loader2 } from "lucide-react";
+import { CheckCircle2, Loader2, BrainCircuit } from "lucide-react";
 import { PageShell } from "@/components/layout/PageShell";
 import { Container } from "@/components/layout/Container";
 import { GlassPanel } from "@/components/ui/GlassPanel";
+import { confirmPayment } from "@/lib/api";
 
 function SuccessContent() {
     const router = useRouter();
+    const [confirmed, setConfirmed] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        // Automatically redirect to the loader page after 3 seconds
+        const notifyBackend = async () => {
+            const uniqueId = sessionStorage.getItem("linkify_unique_id");
+            const rbUniqueId = sessionStorage.getItem("linkify_rb_unique_id");
+
+            if (!uniqueId) {
+                // No unique ID — skip confirmation and go to loader
+                setConfirmed(true);
+                return;
+            }
+
+            try {
+                await confirmPayment({
+                    unique_id: uniqueId,
+                    rb_unique_id: rbUniqueId || undefined,
+                    payment_status: "succeeded",
+                });
+                setConfirmed(true);
+            } catch (err) {
+                console.error("Payment confirm failed:", err);
+                // Still redirect — the backend may have started scoring anyway
+                setConfirmed(true);
+            }
+        };
+
+        notifyBackend();
+    }, []);
+
+    // Redirect to loader after confirmation
+    useEffect(() => {
+        if (!confirmed) return;
+
         const timer = setTimeout(() => {
             router.push("/loader");
-        }, 3000);
+        }, 2500);
 
         return () => clearTimeout(timer);
-    }, [router]);
+    }, [confirmed, router]);
 
     return (
         <PageShell variant="marketing">
@@ -46,13 +79,33 @@ function SuccessContent() {
                             Payment Successful!
                         </h1>
                         <p className="text-gray-600 mb-8 leading-relaxed">
-                            Your transaction has been securely processed. We're now generating your detailed profile analysis.
+                            Your transaction has been securely processed. We&apos;re now generating your detailed profile analysis.
                         </p>
 
-                        <div className="flex items-center justify-center gap-3 text-emerald-600 font-medium bg-emerald-50 py-3 px-4 rounded-xl">
-                            <Loader2 className="w-5 h-5 animate-spin" />
-                            Redirecting to your results...
+                        {/* Status indicator */}
+                        <div className="flex items-center justify-center gap-3 text-emerald-600 font-medium bg-emerald-50 py-3 px-4 rounded-xl mb-4">
+                            {confirmed ? (
+                                <>
+                                    <BrainCircuit className="w-5 h-5 animate-pulse" />
+                                    AI Analysis starting...
+                                </>
+                            ) : (
+                                <>
+                                    <Loader2 className="w-5 h-5 animate-spin" />
+                                    Confirming payment...
+                                </>
+                            )}
                         </div>
+
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ delay: 0.8 }}
+                            className="flex items-center justify-center gap-3 text-slate-500 font-medium"
+                        >
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <span className="text-sm">Redirecting to your results...</span>
+                        </motion.div>
                     </GlassPanel>
                 </motion.div>
             </Container>

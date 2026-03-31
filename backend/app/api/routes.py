@@ -20,6 +20,7 @@ from app.models.schemas import (
     ActivityLogEntry,
     SectionScore,
     PaymentWebhookRequest,
+    PaymentConfirmRequest,
     FeedbackRequest,
     FeedbackResponse,
     PersonaInfo,
@@ -34,7 +35,7 @@ from app.models.schemas import (
     UserLookupResponse,
 )
 from app.graph.state import create_initial_state
-from app.graph.workflow import get_workflow
+from app.graph.workflow import get_workflow, get_scrape_only_workflow, get_scoring_only_workflow
 from app.services.sheets import get_sheets_service
 from app.scoring.calculator import get_pre_scores, get_all_personas
 from app.services.logger import get_session_logger, log_info, log_error, log_event
@@ -47,33 +48,70 @@ router = APIRouter()
 _status_cache: dict[str, dict] = {}
 
 
-def run_workflow_background(state: dict):
-    """Run the workflow in background."""
+def run_workflow_background(state: dict, scrape_only: bool = False):
+    """Run the workflow in background.
+    
+    Args:
+        state: The workflow state dict
+        scrape_only: If True, only run scraping (before payment).
+                     If False, run the full workflow.
+    """
     unique_id = state.get("unique_id", "unknown")
     linkedin_url = state.get("linkedin_url", "")
+    mode = "scrape-only" if scrape_only else "full"
     
-    log_event("workflow", "started", f"Starting workflow for {unique_id}", {
+    log_event("workflow", "started", f"Starting {mode} workflow for {unique_id}", {
         "linkedin_url": linkedin_url,
+        "mode": mode,
     })
     
     try:
-        workflow = get_workflow()
+        if scrape_only:
+            workflow = get_scrape_only_workflow()
+        else:
+            workflow = get_workflow()
         final_state = workflow.invoke(state)
         
         # Update cache with final state
         _status_cache[unique_id] = final_state
         
-        log_event("workflow", "completed", f"Workflow completed for {unique_id}", {
+        log_event("workflow", "completed", f"{mode} workflow completed for {unique_id}", {
             "scrape_status": final_state.get("scrape_status"),
             "has_scores": final_state.get("scores") is not None,
         })
         
     except Exception as e:
-        log_error("workflow", f"Workflow failed for {unique_id}: {str(e)}")
+        log_error("workflow", f"{mode} workflow failed for {unique_id}: {str(e)}")
         _status_cache[unique_id] = {
             **state,
             "error_message": str(e),
             "scrape_status": "failed",
+        }
+
+
+def run_scoring_background(state: dict):
+    """Run the AI scoring workflow on already-scraped data."""
+    unique_id = state.get("unique_id", "unknown")
+    
+    log_event("workflow", "scoring_started", f"Starting AI scoring for {unique_id}")
+    
+    try:
+        scoring_workflow = get_scoring_only_workflow()
+        final_state = scoring_workflow.invoke(state)
+        
+        # Update cache with final state
+        _status_cache[unique_id] = final_state
+        
+        log_event("workflow", "scoring_completed", f"AI scoring completed for {unique_id}", {
+            "has_scores": final_state.get("scores") is not None,
+        })
+        
+    except Exception as e:
+        log_error("workflow", f"AI scoring failed for {unique_id}: {str(e)}")
+        _status_cache[unique_id] = {
+            **state,
+            "error_message": str(e),
+            "ai_scoring_status": "failed",
         }
 
 
@@ -85,8 +123,13 @@ async def start_intake(
     """
     Start a new LinkedIn profile analysis.
     
-    Creates initial records and starts the analysis workflow.
+    Creates initial records, calls RentBasket API for payment link,
+    and starts scraping in the background (before payment).
+    AI scoring is deferred until payment is confirmed via /payment/confirm.
     """
+    import asyncio
+    from app.services.rentbasket import create_lead
+    
     # Start session logging
     session_logger = get_session_logger()
     
@@ -122,8 +165,43 @@ async def start_intake(
     # Store in cache
     _status_cache[state["unique_id"]] = state
     
-    # Run workflow in background
-    background_tasks.add_task(run_workflow_background, state)
+    # === Call RentBasket API to create lead and get payment link ===
+    payment_link = None
+    rb_unique_id = None
+    
+    try:
+        # Extract name from LinkedIn URL username as fallback
+        # Phone: strip country code prefix for RentBasket API (expects 10-digit mobile)
+        phone_digits = request.phone.replace("+", "").replace(" ", "").replace("-", "")
+        # If phone has country code (e.g., +911234567890), try to extract last 10 digits
+        if len(phone_digits) > 10:
+            phone_digits = phone_digits[-10:]
+        
+        # Use email username as name placeholder since intake form may not have name field
+        name = request.email.split("@")[0].replace(".", " ").replace("_", " ").title()
+        
+        lead_result = await create_lead(
+            name=name,
+            email=request.email,
+            mobile=phone_digits,
+        )
+        
+        payment_link = lead_result.get("payment_link")
+        rb_unique_id = lead_result.get("rb_unique_id")
+        
+        log_event("intake", "payment_link_created", f"Payment link generated for {state['unique_id']}", {
+            "rb_unique_id": rb_unique_id,
+            "has_payment_link": bool(payment_link),
+        })
+        
+    except Exception as e:
+        log_error("intake", f"Failed to create RentBasket lead: {str(e)}")
+        # Don't fail the intake — we can still proceed without payment for now
+        # In production, this should be a hard failure
+    
+    # Run SCRAPE-ONLY workflow in background (before payment)
+    # AI scoring will be triggered separately after payment confirmation
+    background_tasks.add_task(run_workflow_background, state, True)  # scrape_only=True
     
     return IntakeResponse(
         unique_id=state["unique_id"],
@@ -132,7 +210,99 @@ async def start_intake(
         previous_attempts_count=previous_attempts,
         message="Welcome back!" if is_returning_user else "Analysis started",
         status="pending",
+        payment_link=payment_link,
+        rb_unique_id=rb_unique_id,
     )
+
+
+@router.post("/payment/confirm")
+async def confirm_payment(
+    request: PaymentConfirmRequest,
+    background_tasks: BackgroundTasks,
+):
+    """
+    Confirm payment and trigger AI scoring.
+    
+    Called by the frontend after the user returns from Razorpay payment.
+    Picks up the already-scraped data and runs AI analysis.
+    """
+    unique_id = request.unique_id
+    
+    log_event("payment", "confirm_received", f"Payment confirmation for {unique_id}", {
+        "payment_status": request.payment_status,
+        "rb_unique_id": request.rb_unique_id,
+    })
+    
+    # Get the cached state (should have scraped data)
+    state = _status_cache.get(unique_id)
+    
+    if not state:
+        raise HTTPException(status_code=404, detail="Analysis not found. Please start a new analysis.")
+    
+    if request.payment_status == "failed":
+        # Update state with payment failure
+        _status_cache[unique_id] = {
+            **state,
+            "payment_status": "failed",
+        }
+        return {"status": "payment_failed", "message": "Payment was not completed."}
+    
+    # Payment succeeded — update state
+    state["payment_status"] = "succeeded"
+    _status_cache[unique_id] = state
+    
+    # Check if scraping is done
+    scrape_status = state.get("scrape_status", "pending")
+    scraped_profile = state.get("scraped_profile")
+    
+    if scrape_status == "completed" and scraped_profile:
+        # Scraping already done — start AI scoring immediately
+        log_event("payment", "scoring_triggered", f"Starting AI scoring for {unique_id} (scrape was ready)")
+        background_tasks.add_task(run_scoring_background, state)
+    elif scrape_status == "failed":
+        # Scraping failed — can't proceed
+        return {
+            "status": "scrape_failed",
+            "message": "Profile scraping failed. Please try again.",
+        }
+    else:
+        # Scraping still in progress — start a poller that waits then triggers scoring
+        log_event("payment", "waiting_for_scrape", f"Waiting for scrape to complete for {unique_id}")
+        background_tasks.add_task(_wait_and_score, unique_id)
+    
+    return {
+        "status": "success",
+        "message": "Payment confirmed. AI analysis is starting.",
+        "unique_id": unique_id,
+    }
+
+
+def _wait_and_score(unique_id: str):
+    """Wait for scraping to complete, then trigger AI scoring."""
+    import time
+    
+    max_wait = 300  # 5 minutes max
+    poll_interval = 5  # Check every 5 seconds
+    elapsed = 0
+    
+    while elapsed < max_wait:
+        state = _status_cache.get(unique_id, {})
+        scrape_status = state.get("scrape_status", "pending")
+        scraped_profile = state.get("scraped_profile")
+        
+        if scrape_status == "completed" and scraped_profile:
+            # Scraping done — trigger AI scoring
+            log_event("payment", "scrape_ready", f"Scrape completed, starting AI scoring for {unique_id}")
+            run_scoring_background(state)
+            return
+        elif scrape_status == "failed":
+            log_error("payment", f"Scrape failed while waiting for {unique_id}")
+            return
+        
+        time.sleep(poll_interval)
+        elapsed += poll_interval
+    
+    log_error("payment", f"Timed out waiting for scrape to complete for {unique_id}")
 
 
 @router.get("/status/{unique_id}", response_model=StatusResponse)
