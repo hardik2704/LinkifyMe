@@ -61,19 +61,20 @@ async def create_payment_link(name: str, email: str, mobile: str) -> dict:
     token = await get_jwt_token()
 
     url = f"{settings.rentbasket_api_base}/insert-sm-leads"
-    params = {
+    payload = {
         "name": name or "Customer",
         "email": email,
         "mobile": mobile,
     }
     headers = {
         "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json",
     }
 
     log_info("rentbasket", f"Creating payment link for {email}")
 
     async with httpx.AsyncClient(timeout=30) as client:
-        response = await client.get(url, params=params, headers=headers)
+        response = await client.post(url, json=payload, headers=headers)
         response.raise_for_status()
         data = response.json()
 
