@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { motion, AnimatePresence, useScroll, useTransform, useMotionValue, useMotionTemplate } from "framer-motion";
+import { motion, AnimatePresence, useScroll, useTransform, useMotionValue, useMotionTemplate, useSpring, useReducedMotion } from "framer-motion";
 import {
     ArrowRight, Menu, X, Check, Zap, Shield, TrendingUp, Cpu, Globe,
     Twitter, Linkedin, Github, Plus, Minus, Play, Quote
@@ -67,14 +67,15 @@ const Button: React.FC<ButtonProps> = ({
             onMouseMove={handleMouseMove}
             onMouseLeave={handleMouseLeave}
             animate={{ x: position.x, y: position.y }}
+            whileTap={{ scale: 0.97 }}
             transition={{ type: "spring", stiffness: 150, damping: 15, mass: 0.1 }}
-            className={`relative rounded-full font-medium transition-colors duration-200 cursor-pointer overflow-hidden group ${variants[variant]} ${sizes[size]} ${className}`}
+            className={`relative rounded-full font-medium transition-[background-color,border-color] duration-150 ease-out cursor-pointer overflow-hidden group ${variants[variant]} ${sizes[size]} ${className}`}
         >
             <span className="relative z-10 flex items-center justify-center gap-2">
                 {children}
             </span>
             {variant === "primary" && (
-                <div className="absolute inset-0 -translate-x-full group-hover:animate-shimmer bg-gradient-to-r from-transparent via-white/20 to-transparent z-0" />
+                <div className="absolute inset-0 -translate-x-full transition-transform duration-700 ease-out group-hover:translate-x-[200%] bg-gradient-to-r from-transparent via-white/20 to-transparent z-0" />
             )}
         </motion.button>
     );
@@ -105,7 +106,7 @@ const Navbar: React.FC = () => {
             >
                 <motion.div
                     layout
-                    className={`relative flex items-center justify-between px-6 transition-all duration-300 ${isScrolled
+                    className={`relative flex items-center justify-between px-6 transition-[width,height,background-color,border-color,box-shadow,backdrop-filter] duration-150 ease-out ${isScrolled
                         ? "w-[90%] md:w-[60%] lg:w-[50%] h-16 bg-white/70 backdrop-blur-xl border border-black/5 rounded-full shadow-lg"
                         : "w-full max-w-7xl h-20 bg-transparent border-transparent"
                         }`}
@@ -119,10 +120,10 @@ const Navbar: React.FC = () => {
                                     src="/logos/linkifyme-full.png"
                                     alt="LinkifyMe"
                                     className="h-12 md:h-16 w-auto object-contain"
-                                    initial={{ opacity: 0, scale: 0.8, rotateX: -90 }}
-                                    animate={{ opacity: 1, scale: 1, rotateX: 0 }}
-                                    exit={{ opacity: 0, scale: 0.8, rotateX: 90 }}
-                                    transition={{ duration: 0.4, ease: "backOut" }}
+                                    initial={{ opacity: 0, scale: 0.95 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    exit={{ opacity: 0, scale: 0.95 }}
+                                    transition={{ duration: 0.15 }}
                                 />
                             ) : (
                                 <motion.img
@@ -130,10 +131,10 @@ const Navbar: React.FC = () => {
                                     src="/logos/linkifyme-icon.png"
                                     alt="Li"
                                     className="h-8 md:h-10 w-auto object-contain"
-                                    initial={{ opacity: 0, scale: 0.8, rotateX: -90 }}
-                                    animate={{ opacity: 1, scale: 1, rotateX: 0 }}
-                                    exit={{ opacity: 0, scale: 0.8, rotateX: 90 }}
-                                    transition={{ duration: 0.4, ease: "backOut" }}
+                                    initial={{ opacity: 0, scale: 0.95 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    exit={{ opacity: 0, scale: 0.95 }}
+                                    transition={{ duration: 0.15 }}
                                 />
                             )}
                         </AnimatePresence>
@@ -238,7 +239,7 @@ const MouseSpotlight = () => {
             style={{
                 background: useTransform(
                     [mouseX, mouseY],
-                    ([x, y]) => `radial-gradient(800px circle at ${x}px ${y}px, rgba(99, 102, 241, 0.12), transparent 40%)`
+                    ([x, y]) => `radial-gradient(500px circle at ${x}px ${y}px, rgba(99, 102, 241, 0.07), transparent 40%)`
                 ),
             }}
         />
@@ -265,13 +266,14 @@ const GridPattern = () => {
 // ============================================================================
 const Hero: React.FC = () => {
     const ref = useRef<HTMLDivElement>(null);
+    const shouldReduceMotion = useReducedMotion();
     const { scrollYProgress } = useScroll({
         target: ref,
         offset: ["start start", "end start"]
     });
 
-    const yText = useTransform(scrollYProgress, [0, 1], ["0%", "50%"]);
-    const opacityText = useTransform(scrollYProgress, [0, 0.5], [1, 0]);
+    const yText = useTransform(scrollYProgress, [0, 1], shouldReduceMotion ? ["0%", "0%"] : ["0%", "50%"]);
+    const opacityText = useTransform(scrollYProgress, [0, 0.8], shouldReduceMotion ? [1, 1] : [1, 0.3]);
 
     return (
         <section ref={ref} className="relative min-h-screen flex items-center justify-center pt-20 overflow-hidden">
@@ -284,8 +286,8 @@ const Hero: React.FC = () => {
                         <motion.div
                             initial={{ opacity: 0, scale: 0.9 }}
                             animate={{ opacity: 1, scale: 1 }}
-                            transition={{ duration: 0.6, delay: 0.2, type: "spring" }}
-                            className="group relative flex items-center space-x-2 bg-white/40 backdrop-blur-md border border-white/40 rounded-full px-5 py-2.5 shadow-[0_8px_32px_rgba(0,0,0,0.04)] hover:shadow-indigo-500/10 transition-all cursor-default"
+                            transition={{ duration: 0.6, delay: 0.05, type: "spring" }}
+                            className="group relative flex items-center space-x-2 bg-white/40 backdrop-blur-md border border-white/40 rounded-full px-5 py-2.5 shadow-[0_8px_32px_rgba(0,0,0,0.04)] hover:shadow-indigo-500/10 transition-shadow duration-200 cursor-default"
                         >
                             <span className="flex h-2 w-2 rounded-full bg-brand animate-pulse"></span>
                             <span className="text-sm font-semibold text-gray-700 tracking-tight">AI-Powered Analysis v2.0</span>
@@ -293,8 +295,8 @@ const Hero: React.FC = () => {
                         <motion.div
                             initial={{ opacity: 0, scale: 0.9 }}
                             animate={{ opacity: 1, scale: 1 }}
-                            transition={{ duration: 0.6, delay: 0.3, type: "spring" }}
-                            className="group relative flex items-center space-x-2 bg-brand/10 backdrop-blur-md border border-brand/20 rounded-full px-5 py-2.5 shadow-[0_8px_32px_rgba(79,70,229,0.08)] hover:shadow-indigo-500/20 transition-all cursor-default"
+                            transition={{ duration: 0.6, delay: 0.1, type: "spring" }}
+                            className="group relative flex items-center space-x-2 bg-brand/10 backdrop-blur-md border border-brand/20 rounded-full px-5 py-2.5 shadow-[0_8px_32px_rgba(79,70,229,0.08)] hover:shadow-indigo-500/20 transition-shadow duration-200 cursor-default"
                         >
                             <Check className="w-4 h-4 text-brand" />
                             <span className="text-sm font-bold text-brand italic tracking-tight">Recruiter Approved Logic</span>
@@ -304,7 +306,7 @@ const Hero: React.FC = () => {
                     <motion.h1
                         initial={{ opacity: 0, y: 30 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.8, delay: 0.4 }}
+                        transition={{ duration: 0.45, delay: 0.15, ease: [0.23, 1, 0.32, 1] }}
                         className="text-7xl md:text-9xl lg:text-[10rem] font-heading font-black tracking-[-0.04em] text-rich-black mb-8 leading-[0.85]"
                     >
                         Profile <br />
@@ -316,7 +318,7 @@ const Hero: React.FC = () => {
                     <motion.p
                         initial={{ opacity: 0, y: 30 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.8, delay: 0.6 }}
+                        transition={{ duration: 0.45, delay: 0.2, ease: [0.23, 1, 0.32, 1] }}
                         className="max-w-3xl mx-auto text-xl md:text-2xl text-slate-500 mb-12 font-medium leading-relaxed"
                     >
                         Stop guessing what hiring managers want. We interviewed 50+ <br className="hidden md:block" />
@@ -326,7 +328,7 @@ const Hero: React.FC = () => {
                     <motion.div
                         initial={{ opacity: 0, y: 30 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.8, delay: 0.8 }}
+                        transition={{ duration: 0.45, delay: 0.25, ease: [0.23, 1, 0.32, 1] }}
                         className="flex flex-col sm:flex-row items-center justify-center gap-6"
                     >
                         <Link href="/intake">
@@ -336,7 +338,7 @@ const Hero: React.FC = () => {
                             </Button>
                         </Link>
                         <a href="#features">
-                            <Button variant="outline" size="lg" className="w-full sm:w-auto h-16 px-10 text-xl font-semibold backdrop-blur-sm border-slate-200">
+                            <Button variant="outline" size="lg" className="w-full sm:w-auto h-16 px-10 text-xl font-semibold backdrop-blur-sm border-slate-200 hover:text-slate-700 hover:border-slate-300">
                                 See Architecture
                             </Button>
                         </a>
@@ -360,22 +362,27 @@ const Comparison: React.FC = () => {
     return (
         <section className="py-32 relative overflow-hidden">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="text-center mb-20">
+                <motion.div
+                    initial={{ opacity: 0, y: 12 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    className="text-center mb-20"
+                >
                     <h2 className="text-4xl md:text-5xl font-bold mb-6 text-rich-black tracking-tight">
                         The <span className="bg-clip-text text-transparent bg-brand-gradient">Shift</span>
                     </h2>
                     <p className="text-gray-500 text-lg max-w-2xl mx-auto">
                         Stop competing in the noise. Ascend to the signal.
                     </p>
-                </div>
+                </motion.div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-10 relative">
                     {/* The Old Way */}
                     <motion.div
-                        initial={{ opacity: 0, x: -50 }}
-                        whileInView={{ opacity: 1, x: 0 }}
+                        initial={{ opacity: 0, y: 16 }}
+                        whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
-                        className="relative p-12 rounded-[2rem] border border-slate-200 bg-slate-50/50 backdrop-blur-sm overflow-hidden group hover:bg-slate-100/50 transition-all duration-500"
+                        className="relative p-12 rounded-[2rem] border border-slate-200 bg-slate-50/50 backdrop-blur-sm overflow-hidden group hover:bg-slate-100/50 transition-[background-color,box-shadow,border-color] duration-300 ease-out"
                     >
                         <div className="absolute top-0 right-0 p-8 opacity-5">
                             <X className="w-32 h-32" />
@@ -408,13 +415,13 @@ const Comparison: React.FC = () => {
 
                     {/* The Linki Way */}
                     <motion.div
-                        initial={{ opacity: 0, x: 50 }}
-                        whileInView={{ opacity: 1, x: 0 }}
+                        initial={{ opacity: 0, y: 16 }}
+                        whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
-                        className="relative p-12 rounded-[2rem] border border-brand/30 bg-white overflow-hidden shadow-[0_32px_64px_rgba(79,70,229,0.12)] group hover:shadow-[0_32px_80px_rgba(79,70,229,0.18)] transition-all duration-500"
+                        className="relative p-12 rounded-[2rem] border border-brand/30 bg-white overflow-hidden shadow-[0_32px_64px_rgba(79,70,229,0.12)] group hover:shadow-[0_32px_80px_rgba(79,70,229,0.18)] transition-[background-color,box-shadow,border-color] duration-300 ease-out"
                     >
                         <div className="absolute inset-0 bg-brand-gradient opacity-[0.03] group-hover:opacity-[0.05] transition-opacity" />
-                        <div className="absolute top-[-10%] right-[-10%] w-64 h-64 bg-brand/5 rounded-full blur-3xl group-hover:scale-110 transition-transform duration-700" />
+                        <div className="absolute top-[-10%] right-[-10%] w-64 h-64 bg-brand/5 rounded-full blur-3xl group-hover:scale-110 transition-transform duration-300 ease-out" />
 
                         <h3 className="text-3xl font-bold text-rich-black mb-10 flex items-center relative z-10">
                             <span className="flex items-center justify-center w-10 h-10 rounded-full bg-brand mr-4 shadow-xl shadow-brand/40 ring-4 ring-brand/10">
@@ -480,6 +487,8 @@ const FeatureCard = ({ feature, i }: { feature: typeof features[0]; i: number })
     const ref = useRef<HTMLDivElement>(null);
     const x = useMotionValue(0);
     const y = useMotionValue(0);
+    const springX = useSpring(x, { stiffness: 200, damping: 25 });
+    const springY = useSpring(y, { stiffness: 200, damping: 25 });
 
     const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
         if (!ref.current) return;
@@ -494,16 +503,16 @@ const FeatureCard = ({ feature, i }: { feature: typeof features[0]; i: number })
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ delay: i * 0.1 }}
+            transition={{ delay: Math.min(i * 0.05, 0.2) }}
             onMouseMove={handleMouseMove}
-            className={`group relative overflow-hidden rounded-[2rem] border border-slate-200 p-10 hover:border-brand/30 hover:shadow-2xl transition-all duration-500 ${feature.className}`}
+            className={`group relative overflow-hidden rounded-[2rem] border border-slate-200 p-10 hover:border-brand/30 hover:shadow-2xl transition-[border-color,box-shadow] duration-200 ease-out ${feature.className}`}
         >
             <div className="pointer-events-none absolute -inset-px opacity-0 transition duration-300 group-hover:opacity-100">
                 <motion.div
                     className="absolute inset-0 bg-brand-gradient-subtle opacity-20"
                     style={{
-                        maskImage: useMotionTemplate`radial-gradient(350px circle at ${x}px ${y}px, black, transparent)`,
-                        WebkitMaskImage: useMotionTemplate`radial-gradient(350px circle at ${x}px ${y}px, black, transparent)`,
+                        maskImage: useMotionTemplate`radial-gradient(350px circle at ${springX}px ${springY}px, black, transparent)`,
+                        WebkitMaskImage: useMotionTemplate`radial-gradient(350px circle at ${springX}px ${springY}px, black, transparent)`,
                     }}
                 />
             </div>
@@ -586,6 +595,9 @@ const recruiterInsights = [
 ];
 
 const RecruiterInsights: React.FC = () => {
+    const [isPaused, setIsPaused] = useState(false);
+    const shouldReduceMotion = useReducedMotion();
+
     return (
         <section id="stories" className="py-24 relative">
             <div className="mb-16 text-center relative z-20">
@@ -597,16 +609,19 @@ const RecruiterInsights: React.FC = () => {
                 </p>
             </div>
 
-            <div className="flex overflow-hidden">
-                <motion.div
-                    className="flex gap-8 px-4"
-                    animate={{ x: ["0%", "-50%"] }}
-                    transition={{ repeat: Infinity, duration: 45, ease: "linear" }}
+            <div
+                className="flex overflow-hidden"
+                onMouseEnter={() => setIsPaused(true)}
+                onMouseLeave={() => setIsPaused(false)}
+            >
+                <div
+                    className={`flex gap-8 px-4 ${shouldReduceMotion ? '' : 'animate-scroll-x'}`}
+                    style={{ animationPlayState: isPaused ? "paused" : "running" }}
                 >
                     {[...recruiterInsights, ...recruiterInsights].map((insight, i) => (
                         <div
                             key={i}
-                            className="flex-shrink-0 w-[500px] p-10 rounded-[2.5rem] bg-white border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_50px_rgba(79,70,229,0.08)] transition-all duration-500 group relative overflow-hidden"
+                            className="flex-shrink-0 w-[500px] p-10 rounded-[2.5rem] bg-white border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_50px_rgba(79,70,229,0.08)] transition-[box-shadow,background-color] duration-200 ease-out group relative overflow-hidden"
                         >
                             <div className="absolute top-0 right-0 p-8 opacity-5">
                                 <Quote className="w-24 h-24 text-brand" />
@@ -634,7 +649,7 @@ const RecruiterInsights: React.FC = () => {
                             </div>
                         </div>
                     ))}
-                </motion.div>
+                </div>
             </div>
         </section>
     );
@@ -698,8 +713,8 @@ const FAQ: React.FC = () => {
                             initial={{ opacity: 0, y: 10 }}
                             whileInView={{ opacity: 1, y: 0 }}
                             viewport={{ once: true }}
-                            transition={{ delay: index * 0.1 }}
-                            className={`group bg-white/40 backdrop-blur-md rounded-3xl overflow-hidden border transition-all duration-500 ${openIndex === index ? "border-brand/30 shadow-2xl shadow-brand/5 ring-1 ring-brand/10 bg-white" : "border-slate-200 hover:border-slate-300 hover:shadow-xl hover:shadow-slate-200/50"}`}
+                            transition={{ delay: Math.min(index * 0.05, 0.2) }}
+                            className={`group bg-white/40 backdrop-blur-md rounded-3xl overflow-hidden border transition-[border-color,box-shadow,background-color] duration-200 ease-out ${openIndex === index ? "border-brand/30 shadow-2xl shadow-brand/5 ring-1 ring-brand/10 bg-white" : "border-slate-200 hover:border-slate-300 hover:shadow-xl hover:shadow-slate-200/50"}`}
                         >
                             <button
                                 className="w-full flex items-center justify-between p-6 text-left group"
@@ -720,7 +735,7 @@ const FAQ: React.FC = () => {
                                         initial={{ height: 0, opacity: 0 }}
                                         animate={{ height: "auto", opacity: 1 }}
                                         exit={{ height: 0, opacity: 0 }}
-                                        transition={{ duration: 0.3, ease: "easeInOut" }}
+                                        transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
                                     >
                                         <div className="px-6 pb-6 text-gray-500 leading-relaxed border-t border-dashed border-black/5 pt-4">
                                             {faq.answer}
@@ -768,7 +783,7 @@ const PreFooterCTA: React.FC = () => {
                         <span className="text-brand/60 italic text-lg">Built for the Top 1%. Approved by recruiters.</span>
                     </p>
                     <Link href="/intake">
-                        <Button size="lg" className="h-20 px-14 text-2xl font-black shadow-[0_20px_80px_rgba(79,70,229,0.3)] hover:shadow-[0_20px_100px_rgba(79,70,229,0.5)] transition-all duration-500 rounded-2xl group active:scale-95">
+                        <Button size="lg" className="h-20 px-14 text-2xl font-black shadow-[0_20px_80px_rgba(79,70,229,0.3)] hover:shadow-[0_20px_100px_rgba(79,70,229,0.5)] transition-[box-shadow] duration-200 ease-out rounded-2xl group active:scale-95">
                             Start Free Audit
                             <ArrowRight className="w-8 h-8 ml-4 transition-transform group-hover:translate-x-3" />
                         </Button>
@@ -785,7 +800,13 @@ const PreFooterCTA: React.FC = () => {
 const Footer: React.FC = () => {
     return (
         <footer className="bg-rich-black pt-20 pb-10 border-t border-white/5">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.4 }}
+                className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
+            >
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
                     <div className="col-span-1 md:col-span-2">
                         <span className="text-2xl font-bold tracking-tighter text-white mb-4 block">
@@ -835,7 +856,7 @@ const Footer: React.FC = () => {
                         ))}
                     </div>
                 </div>
-            </div>
+            </motion.div>
         </footer>
     );
 };
@@ -844,17 +865,19 @@ const Footer: React.FC = () => {
 // MAIN LANDING PAGE
 // ============================================================================
 export default function HomePage() {
+    const shouldReduceMotion = useReducedMotion();
+
     return (
         <div className="min-h-screen bg-white text-rich-black font-sans selection:bg-brand selection:text-white overflow-x-hidden relative">
             {/* Global Atmosphere - Mesh Gradients */}
             <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
                 <GridPattern />
                 {/* Indigo Glow Top Left */}
-                <div className="absolute top-[-20%] left-[-10%] w-[60vw] h-[60vw] bg-indigo-500/10 rounded-full blur-[140px] animate-slow-spin-slow" />
+                <div className="absolute top-[-20%] left-[-10%] w-[40vw] h-[40vw] bg-indigo-500/[0.06] rounded-full blur-[140px] animate-slow-spin" />
                 {/* Purple Glow Bottom Right */}
-                <div className="absolute bottom-[-20%] right-[-10%] w-[60vw] h-[60vw] bg-purple-500/10 rounded-full blur-[140px] animate-slow-spin-slow" style={{ animationDirection: "reverse" }} />
+                <div className="absolute bottom-[-20%] right-[-10%] w-[40vw] h-[40vw] bg-purple-500/[0.06] rounded-full blur-[140px] animate-slow-spin" style={{ animationDirection: "reverse" }} />
                 {/* Soft Blue Center */}
-                <div className="absolute top-[20%] right-[10%] w-[40vw] h-[40vw] bg-blue-400/5 rounded-full blur-[120px] animate-pulse-slow" />
+                <div className="absolute top-[20%] right-[10%] w-[40vw] h-[40vw] bg-blue-400/[0.03] rounded-full blur-[120px] animate-pulse-slow" />
 
                 <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.15] brightness-110 contrast-125 mix-blend-soft-light" />
             </div>
