@@ -25,6 +25,7 @@ const config: Config = {
           DEFAULT: "#2563eb",
           glow: "#60a5fa",
         },
+        'metallic-blue': '#4361ee',
       },
       fontFamily: {
         sans: ['"Plus Jakarta Sans"', "Inter", "system-ui", "sans-serif"],
