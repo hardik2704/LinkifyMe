@@ -44,6 +44,11 @@ class Settings(BaseSettings):
     
     # === PDF Generation ===
     pdfshift_api_key: str = Field(default="")
+
+    # === Payment / RentBasket ===
+    bypass_payment: bool = Field(default=False)
+    rentbasket_api_base: str = Field(default="https://testapi.rentbasket.com")
+    rentbasket_jwt_token: str = Field(default="")
     
     @property
     def google_credentials(self) -> dict | None:

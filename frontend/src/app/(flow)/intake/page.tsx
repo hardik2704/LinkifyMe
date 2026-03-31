@@ -5,9 +5,9 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { ArrowLeft, Search, Sparkles, User, History } from "lucide-react";
-import { MarketingNav } from "@/components/marketing/MarketingNav";
-import { MarketingBackground } from "@/components/marketing/MarketingBackground";
+import { PageShell } from "@/components/layout/PageShell";
 import { Container } from "@/components/layout/Container";
+import { GlassPanel } from "@/components/ui/GlassPanel";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
@@ -113,8 +113,11 @@ export default function IntakePage() {
                 target_group: targetGroup,
             });
 
-            // Store user info for downstream pages
+            // Store user info for payment and loader pages
             sessionStorage.setItem("linkify_unique_id", data.unique_id);
+            sessionStorage.setItem("linkify_email", email);
+            sessionStorage.setItem("linkify_phone", `${countryCode}${phone.replace(/\s/g, '')}`);
+            sessionStorage.setItem("linkify_name", email.split("@")[0]);
             if (data.user_id) {
                 sessionStorage.setItem("linkify_user_id", data.user_id);
             }
@@ -123,19 +126,6 @@ export default function IntakePage() {
                 sessionStorage.setItem("linkify_previous_attempts", String(data.previous_attempts_count));
             }
 
-            // Store payment info
-            if (data.payment_link) {
-                sessionStorage.setItem("linkify_payment_link", data.payment_link);
-            }
-            if (data.rb_unique_id) {
-                sessionStorage.setItem("linkify_rb_unique_id", data.rb_unique_id);
-            }
-
-            // Store user details for the payment page
-            sessionStorage.setItem("linkify_email", email);
-            sessionStorage.setItem("linkify_linkedin_url", linkedinUrl);
-
-            // Redirect to payment page (scraping has already started in the background)
             router.push("/payment");
 
         } catch (err) {
@@ -145,50 +135,57 @@ export default function IntakePage() {
     };
 
     return (
-        <div className="min-h-screen bg-white text-rich-black font-sans selection:bg-brand selection:text-white overflow-x-hidden relative">
-            <MarketingBackground />
-            
-            <div className="relative z-10 pt-20 pb-20">
-                <MarketingNav />
-                
-                <Container className="relative mb-16 mt-16 max-w-3xl">
+        <PageShell variant="marketing">
+            {/* Header */}
+            <div className="bg-gradient-to-b from-brand to-brand-dark pt-8 pb-16 text-white">
+                <Container>
+                    <Link
+                        href="/"
+                        className="inline-flex items-center gap-2 text-sm text-white/70 hover:text-white transition-colors mb-8"
+                    >
+                        <ArrowLeft className="h-4 w-4" />
+                        Back to home
+                    </Link>
+
                     <div className="text-center">
                         <motion.div
                             initial={{ opacity: 0, scale: 0.9 }}
                             animate={{ opacity: 1, scale: 1 }}
-                            className="inline-flex items-center justify-center mb-6"
+                            className="inline-flex items-center justify-center mb-4"
                         >
-                            <div className="h-16 w-16 rounded-2xl bg-brand/10 text-brand flex items-center justify-center border border-brand/20 shadow-sm">
-                                <Search className="h-7 w-7" />
+                            <div className="h-12 w-12 rounded-xl bg-white/20 flex items-center justify-center">
+                                <Search className="h-6 w-6" />
                             </div>
                         </motion.div>
                         <motion.h1
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.1 }}
-                            className="text-5xl sm:text-6xl font-black mb-6 tracking-tight text-rich-black"
+                            className="font-display text-3xl sm:text-4xl font-bold mb-2"
                         >
-                            Analyze Your <span className="bg-clip-text text-transparent bg-brand-gradient drop-shadow-sm">LinkedIn</span>
+                            Analyze Your LinkedIn
                         </motion.h1>
                         <motion.p
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.2 }}
-                            className="text-xl text-slate-500 font-medium leading-relaxed"
+                            className="text-white/70"
                         >
-                            Get recruiter-vetted AI insights delivered in seconds. <br className="hidden sm:block" /> Engineered for the top 1%.
+                            Get AI-powered insights to boost your profile
                         </motion.p>
                     </div>
                 </Container>
+            </div>
 
-                <Container className="relative">
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.3 }}
-                        className="max-w-xl mx-auto"
-                    >
-                        <div className="bg-white/80 backdrop-blur-xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-[2.5rem] p-8 sm:p-12 relative transition-all duration-300 hover:shadow-[0_20px_50px_rgba(79,70,229,0.08)] hover:border-brand/30">
+            {/* Form */}
+            <Container className="relative -mt-8 pb-20">
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3 }}
+                    className="max-w-xl mx-auto"
+                >
+                    <GlassPanel className="p-8">
                         <form onSubmit={handleSubmit} className="space-y-6">
                             {/* Returning User Banner */}
                             {returningUser && (
@@ -330,10 +327,9 @@ export default function IntakePage() {
                                 Privacy Policy
                             </Link>
                         </p>
-                        </div>
+                    </GlassPanel>
                 </motion.div>
             </Container>
-            </div>
-        </div>
+        </PageShell>
     );
 }

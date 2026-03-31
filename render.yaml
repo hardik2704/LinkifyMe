@@ -19,6 +19,11 @@ services:
         value: false
       - key: LOG_LEVEL
         value: INFO
+      # Payment bypass — set to true for internal testing, false for live payments
+      - key: BYPASS_PAYMENT
+        value: false
+      - key: RENTBASKET_API_BASE
+        value: https://testapi.rentbasket.com
       # Secret env vars - set these in Render dashboard
       - key: GOOGLE_SERVICE_ACCOUNT_JSON
         sync: false
@@ -29,6 +34,8 @@ services:
       - key: OPENAI_API_KEY
         sync: false
       - key: PDFSHIFT_API_KEY
+        sync: false
+      - key: RENTBASKET_JWT_TOKEN
         sync: false
     healthCheckPath: /health
     autoDeploy: true
