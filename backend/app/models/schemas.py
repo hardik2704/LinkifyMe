@@ -33,11 +33,42 @@ class IntakeRequest(BaseModel):
 
 class PaymentWebhookRequest(BaseModel):
     """Request body for payment webhook."""
-    
+
     customer_id: str = Field(..., description="Customer ID")
     status: Literal["succeeded", "failed"] = Field(..., description="Payment status")
     payment_gateway_id: Optional[str] = Field(None, description="External payment reference")
     amount: Optional[float] = Field(None, description="Payment amount")
+
+
+class CreatePaymentLinkRequest(BaseModel):
+    """Request body for creating a Razorpay payment link."""
+
+    unique_id: str = Field(..., description="Unique ID from intake")
+    name: str = Field(default="", description="Customer name")
+    email: str = Field(..., description="Customer email")
+    mobile: str = Field(..., description="Customer phone number")
+
+
+class CreatePaymentLinkResponse(BaseModel):
+    """Response with Razorpay payment link."""
+
+    payment_link: Optional[str] = None
+    bypassed: bool = False
+
+
+class ConfirmPaymentRequest(BaseModel):
+    """Request body for confirming payment status."""
+
+    unique_id: str = Field(..., description="Unique ID from intake")
+    status: Literal["succeeded", "failed"] = Field(..., description="Payment outcome")
+    razorpay_payment_id: Optional[str] = Field(None, description="Razorpay payment reference")
+
+
+class ConfirmPaymentResponse(BaseModel):
+    """Response after confirming payment."""
+
+    status: str
+    scrape_complete: bool = False
 
 
 # === Response Schemas ===

@@ -464,7 +464,7 @@ const features = [
         title: "Instant Velocity",
         description: "Audit delivered in <2s with edge-powered neural analysis.",
         icon: Zap,
-        className: "md:col-span-1 border-brand/20 bg-brand/5 group-hover:bg-brand group-hover:text-white transition-all duration-500",
+        className: "md:col-span-1 border-brand/20 bg-brand/5 group-hover:bg-brand group-hover:text-white transition-[background-color,color,border-color] duration-300 ease-out",
         iconContainer: "bg-brand/10 text-brand group-hover:bg-white group-hover:text-brand",
     },
     {
@@ -518,7 +518,7 @@ const FeatureCard = ({ feature, i }: { feature: typeof features[0]; i: number })
             </div>
 
             <div className={`relative z-10 flex h-full ${feature.className?.includes('flex-row') ? 'flex-row items-center gap-8' : 'flex-col justify-between'}`}>
-                <div className={`shrink-0 mb-6 inline-flex h-14 w-14 items-center justify-center rounded-2xl transition-all duration-500 ${feature.iconContainer}`}>
+                <div className={`shrink-0 mb-6 inline-flex h-14 w-14 items-center justify-center rounded-2xl transition-[background-color,color] duration-300 ease-out ${feature.iconContainer}`}>
                     <feature.icon size={28} />
                 </div>
                 <div>

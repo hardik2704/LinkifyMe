@@ -72,6 +72,16 @@ export interface IntakeResponse {
     status: string;
 }
 
+export interface CreatePaymentLinkResponse {
+    payment_link: string | null;
+    bypassed: boolean;
+}
+
+export interface ConfirmPaymentResponse {
+    status: string;
+    scrape_complete: boolean;
+}
+
 export interface FeedbackRequest {
     email: string;
     customer_id: string;
@@ -181,6 +191,55 @@ export async function submitFeedback(
             errorMsg = JSON.stringify(errorMsg);
         }
         throw new Error(errorMsg);
+    }
+
+    return response.json();
+}
+
+/**
+ * Create a Razorpay payment link via backend
+ */
+export async function createPaymentLink(data: {
+    unique_id: string;
+    name: string;
+    email: string;
+    mobile: string;
+}): Promise<CreatePaymentLinkResponse> {
+    const response = await fetch(`${API_BASE}/api/payment/create-link`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.detail || "Failed to create payment link");
+    }
+
+    return response.json();
+}
+
+/**
+ * Confirm payment status after Razorpay redirect
+ */
+export async function confirmPayment(data: {
+    unique_id: string;
+    status: "succeeded" | "failed";
+    razorpay_payment_id?: string;
+}): Promise<ConfirmPaymentResponse> {
+    const response = await fetch(`${API_BASE}/api/payment/confirm`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.detail || "Failed to confirm payment");
     }
 
     return response.json();

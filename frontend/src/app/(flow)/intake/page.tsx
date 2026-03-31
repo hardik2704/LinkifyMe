@@ -113,8 +113,11 @@ export default function IntakePage() {
                 target_group: targetGroup,
             });
 
-            // Store user info for loader page
+            // Store user info for payment and loader pages
             sessionStorage.setItem("linkify_unique_id", data.unique_id);
+            sessionStorage.setItem("linkify_email", email);
+            sessionStorage.setItem("linkify_phone", `${countryCode}${phone.replace(/\s/g, '')}`);
+            sessionStorage.setItem("linkify_name", email.split("@")[0]);
             if (data.user_id) {
                 sessionStorage.setItem("linkify_user_id", data.user_id);
             }
@@ -123,7 +126,7 @@ export default function IntakePage() {
                 sessionStorage.setItem("linkify_previous_attempts", String(data.previous_attempts_count));
             }
 
-            router.push("/loader");
+            router.push("/payment");
 
         } catch (err) {
             setError(err instanceof Error ? err.message : "Something went wrong");
