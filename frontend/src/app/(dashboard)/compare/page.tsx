@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
@@ -18,6 +18,22 @@ import { Button } from "@/components/ui/Button";
 import { compareAttempts, type ComparisonResponse, type ScoreComparison } from "@/lib/api";
 
 export default function ComparePage() {
+    return (
+        <Suspense fallback={
+            <PageShell variant="dashboard">
+                <Container className="py-20">
+                    <div className="flex items-center justify-center">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand"></div>
+                    </div>
+                </Container>
+            </PageShell>
+        }>
+            <ComparePageInner />
+        </Suspense>
+    );
+}
+
+function ComparePageInner() {
     const searchParams = useSearchParams();
     const currentId = searchParams.get("current");
     const previousId = searchParams.get("previous");

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { Suspense, useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { Camera, Image as ImageIcon, Type, Users, UserPlus, User, Briefcase, GraduationCap, Award, Wrench, CheckCircle, Crown, Share2, Check, Clock, RefreshCw } from "lucide-react";
@@ -115,6 +115,24 @@ const defaultReport: ReportData = {
 };
 
 export default function ReportPage() {
+    return (
+        <Suspense fallback={
+            <PageShell variant="dashboard">
+                <TopNav mode="dashboard" />
+                <Container className="flex items-center justify-center min-h-[60vh]">
+                    <div className="flex flex-col items-center gap-4">
+                        <div className="h-12 w-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+                        <p className="text-slate-600 font-medium">Loading your profile report...</p>
+                    </div>
+                </Container>
+            </PageShell>
+        }>
+            <ReportPageInner />
+        </Suspense>
+    );
+}
+
+function ReportPageInner() {
     const searchParams = useSearchParams();
     const [activeSection, setActiveSection] = useState("headline");
     const [report, setReport] = useState<ReportData>(defaultReport);
