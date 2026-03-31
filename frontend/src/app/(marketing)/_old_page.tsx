@@ -8,258 +8,9 @@ import {
     Twitter, Linkedin, Github, Plus, Minus, Play, Quote
 } from "lucide-react";
 
-// ============================================================================
-// BUTTON COMPONENT
-// ============================================================================
-interface ButtonProps {
-    variant?: "primary" | "secondary" | "outline" | "ghost";
-    size?: "sm" | "md" | "lg";
-    children: React.ReactNode;
-    className?: string;
-    onClick?: () => void;
-    disabled?: boolean;
-    type?: "button" | "submit" | "reset";
-}
-
-const Button: React.FC<ButtonProps> = ({
-    className = "",
-    variant = "primary",
-    size = "md",
-    children,
-    onClick,
-    disabled,
-    type = "button",
-}) => {
-    const ref = useRef<HTMLButtonElement>(null);
-    const [position, setPosition] = useState({ x: 0, y: 0 });
-
-    const handleMouseMove = (e: React.MouseEvent<HTMLButtonElement>) => {
-        const { clientX, clientY } = e;
-        const { left, top, width, height } = ref.current?.getBoundingClientRect() ?? { left: 0, top: 0, width: 0, height: 0 };
-        const x = (clientX - (left + width / 2)) * 0.35;
-        const y = (clientY - (top + height / 2)) * 0.35;
-        setPosition({ x, y });
-    };
-
-    const handleMouseLeave = () => {
-        setPosition({ x: 0, y: 0 });
-    };
-
-    const variants = {
-        primary: "bg-gray-200 text-rich-black hover:bg-gray-300 border border-gray-300 shadow-lg hover:shadow-gray-300/50",
-        secondary: "bg-gray-100 text-rich-black border border-gray-200 hover:bg-gray-200",
-        outline: "bg-transparent text-rich-black border border-black/10 hover:bg-black/5 hover:border-black/30",
-        ghost: "bg-transparent text-gray-500 hover:text-rich-black",
-    };
-
-    const sizes = {
-        sm: "px-4 py-2 text-sm",
-        md: "px-6 py-3 text-base",
-        lg: "px-8 py-4 text-lg",
-    };
-
-    return (
-        <motion.button
-            ref={ref}
-            type={type}
-            disabled={disabled}
-            onClick={onClick}
-            onMouseMove={handleMouseMove}
-            onMouseLeave={handleMouseLeave}
-            animate={{ x: position.x, y: position.y }}
-            whileTap={{ scale: 0.97 }}
-            transition={{ type: "spring", stiffness: 150, damping: 15, mass: 0.1 }}
-            className={`relative rounded-full font-medium transition-[background-color,border-color] duration-150 ease-out cursor-pointer overflow-hidden group ${variants[variant]} ${sizes[size]} ${className}`}
-        >
-            <span className="relative z-10 flex items-center justify-center gap-2">
-                {children}
-            </span>
-            {variant === "primary" && (
-                <div className="absolute inset-0 -translate-x-full transition-transform duration-700 ease-out group-hover:translate-x-[200%] bg-gradient-to-r from-transparent via-white/20 to-transparent z-0" />
-            )}
-        </motion.button>
-    );
-};
-
-// ============================================================================
-// NAVBAR COMPONENT
-// ============================================================================
-const Navbar: React.FC = () => {
-    const [isScrolled, setIsScrolled] = useState(false);
-    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-
-    useEffect(() => {
-        const handleScroll = () => {
-            setIsScrolled(window.scrollY > 50);
-        };
-        window.addEventListener("scroll", handleScroll);
-        return () => window.removeEventListener("scroll", handleScroll);
-    }, []);
-
-    return (
-        <>
-            <motion.nav
-                initial={{ y: -100 }}
-                animate={{ y: 0 }}
-                transition={{ duration: 0.6, ease: "easeOut" }}
-                className="fixed top-0 left-0 right-0 z-50 flex justify-center pt-6 px-4"
-            >
-                <motion.div
-                    layout
-                    className={`relative flex items-center justify-between px-6 transition-[width,height,background-color,border-color,box-shadow,backdrop-filter] duration-150 ease-out ${isScrolled
-                        ? "w-[90%] md:w-[60%] lg:w-[50%] h-16 bg-white/70 backdrop-blur-xl border border-black/5 rounded-full shadow-lg"
-                        : "w-full max-w-7xl h-20 bg-transparent border-transparent"
-                        }`}
-                >
-                    {/* Logo */}
-                    <Link href="/" className="flex items-center cursor-pointer">
-                        <AnimatePresence mode="wait">
-                            {!isScrolled ? (
-                                <motion.img
-                                    key="full-logo"
-                                    src="/logos/linkifyme-full.png"
-                                    alt="LinkifyMe"
-                                    className="h-12 md:h-16 w-auto object-contain"
-                                    initial={{ opacity: 0, scale: 0.95 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    exit={{ opacity: 0, scale: 0.95 }}
-                                    transition={{ duration: 0.15 }}
-                                />
-                            ) : (
-                                <motion.img
-                                    key="icon-logo"
-                                    src="/logos/linkifyme-icon.png"
-                                    alt="Li"
-                                    className="h-8 md:h-10 w-auto object-contain"
-                                    initial={{ opacity: 0, scale: 0.95 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    exit={{ opacity: 0, scale: 0.95 }}
-                                    transition={{ duration: 0.15 }}
-                                />
-                            )}
-                        </AnimatePresence>
-                    </Link>
-
-                    {/* Desktop Links */}
-                    <div className="hidden md:flex items-center space-x-8">
-                        {["Features", "HR Verdicts", "FAQ"].map((item) => (
-                            <a
-                                key={item}
-                                href={`#${item.toLowerCase().replace(' ', '-')}`}
-                                className="text-sm font-bold text-slate-500 hover:text-brand transition-colors tracking-tight"
-                            >
-                                {item}
-                            </a>
-                        ))}
-                    </div>
-
-                    {/* CTA */}
-                    <div className="hidden md:block">
-                        <Link href="/intake">
-                            <Button
-                                variant={isScrolled ? "primary" : "outline"}
-                                size="sm"
-                                className={!isScrolled ? "text-rich-black border-black/10 hover:bg-black/5" : "shadow-lg shadow-brand/20"}
-                            >
-                                Get Access
-                            </Button>
-                        </Link>
-                    </div>
-
-                    {/* Mobile Toggle */}
-                    <div className="md:hidden">
-                        <button
-                            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                            className="text-rich-black p-2 hover:bg-black/5 rounded-full transition-colors"
-                        >
-                            {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
-                        </button>
-                    </div>
-                </motion.div>
-            </motion.nav>
-
-            {/* Mobile Menu Overlay */}
-            <AnimatePresence>
-                {isMobileMenuOpen && (
-                    <motion.div
-                        initial={{ opacity: 0, y: -20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -20 }}
-                        className="fixed inset-0 z-40 bg-white/95 backdrop-blur-md pt-28 px-6 md:hidden flex flex-col items-center space-y-8 border-b border-black/5"
-                    >
-                        {["Features", "HR Verdicts", "FAQ"].map((item, i) => (
-                            <motion.a
-                                key={item}
-                                href={`#${item.toLowerCase()}`}
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: i * 0.1 }}
-                                onClick={() => setIsMobileMenuOpen(false)}
-                                className="text-2xl font-medium text-rich-black hover:text-brand transition-colors"
-                            >
-                                {item}
-                            </motion.a>
-                        ))}
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.3 }}
-                            className="w-full max-w-xs"
-                        >
-                            <Link href="/intake" onClick={() => setIsMobileMenuOpen(false)}>
-                                <Button className="w-full">Get Access</Button>
-                            </Link>
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-        </>
-    );
-};
-
-// ============================================================================
-// MOUSE SPOTLIGHT
-// ============================================================================
-const MouseSpotlight = () => {
-    const mouseX = useMotionValue(0);
-    const mouseY = useMotionValue(0);
-
-    useEffect(() => {
-        const handleMouseMove = (e: MouseEvent) => {
-            mouseX.set(e.clientX);
-            mouseY.set(e.clientY);
-        };
-        window.addEventListener("mousemove", handleMouseMove);
-        return () => window.removeEventListener("mousemove", handleMouseMove);
-    }, [mouseX, mouseY]);
-
-    return (
-        <motion.div
-            className="pointer-events-none fixed inset-0 z-0 transition-opacity duration-300"
-            style={{
-                background: useTransform(
-                    [mouseX, mouseY],
-                    ([x, y]) => `radial-gradient(500px circle at ${x}px ${y}px, rgba(99, 102, 241, 0.07), transparent 40%)`
-                ),
-            }}
-        />
-    );
-};
-
-const GridPattern = () => {
-    return (
-        <div className="absolute inset-0 z-0 opacity-[0.03] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)]">
-            <svg className="h-full w-full" xmlns="http://www.w3.org/2000/svg">
-                <defs>
-                    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-                        <path d="M 40 0 L 0 0 0 40" fill="none" stroke="currentColor" strokeWidth="1" />
-                    </pattern>
-                </defs>
-                <rect width="100%" height="100%" fill="url(#grid)" />
-            </svg>
-        </div>
-    );
-};
+import { MarketingButton } from "@/components/marketing/MarketingButton";
+import { MarketingNav } from "@/components/marketing/MarketingNav";
+import { MouseSpotlight, MarketingBackground } from "@/components/marketing/MarketingBackground";
 
 // ============================================================================
 // HERO SECTION
@@ -332,15 +83,15 @@ const Hero: React.FC = () => {
                         className="flex flex-col sm:flex-row items-center justify-center gap-6"
                     >
                         <Link href="/intake">
-                            <Button size="lg" className="w-full sm:w-auto h-16 px-10 text-xl font-bold group shadow-2xl shadow-indigo-500/20">
+                            <MarketingButton size="lg" className="w-full sm:w-auto h-16 px-10 text-xl font-bold group shadow-2xl shadow-indigo-500/20">
                                 Start Free Audit
                                 <ArrowRight className="w-6 h-6 ml-2 transition-transform group-hover:translate-x-1.5" />
-                            </Button>
+                            </MarketingButton>
                         </Link>
                         <a href="#features">
-                            <Button variant="outline" size="lg" className="w-full sm:w-auto h-16 px-10 text-xl font-semibold backdrop-blur-sm border-slate-200 hover:text-slate-700 hover:border-slate-300">
+                            <MarketingButton variant="outline" size="lg" className="w-full sm:w-auto h-16 px-10 text-xl font-semibold backdrop-blur-sm border-slate-200 hover:text-slate-700 hover:border-slate-300">
                                 See Architecture
-                            </Button>
+                            </MarketingButton>
                         </a>
                     </motion.div>
 
@@ -783,10 +534,10 @@ const PreFooterCTA: React.FC = () => {
                         <span className="text-brand/60 italic text-lg">Built for the Top 1%. Approved by recruiters.</span>
                     </p>
                     <Link href="/intake">
-                        <Button size="lg" className="h-20 px-14 text-2xl font-black shadow-[0_20px_80px_rgba(79,70,229,0.3)] hover:shadow-[0_20px_100px_rgba(79,70,229,0.5)] transition-[box-shadow] duration-200 ease-out rounded-2xl group active:scale-95">
+                        <MarketingButton size="lg" className="h-20 px-14 text-2xl font-black shadow-[0_20px_80px_rgba(79,70,229,0.3)] hover:shadow-[0_20px_100px_rgba(79,70,229,0.5)] transition-[box-shadow] duration-200 ease-out rounded-2xl group active:scale-95">
                             Start Free Audit
                             <ArrowRight className="w-8 h-8 ml-4 transition-transform group-hover:translate-x-3" />
-                        </Button>
+                        </MarketingButton>
                     </Link>
                 </motion.div>
             </div>
@@ -869,21 +620,10 @@ export default function HomePage() {
 
     return (
         <div className="min-h-screen bg-white text-rich-black font-sans selection:bg-brand selection:text-white overflow-x-hidden relative">
-            {/* Global Atmosphere - Mesh Gradients */}
-            <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
-                <GridPattern />
-                {/* Indigo Glow Top Left */}
-                <div className="absolute top-[-20%] left-[-10%] w-[40vw] h-[40vw] bg-indigo-500/[0.06] rounded-full blur-[140px] animate-slow-spin" />
-                {/* Purple Glow Bottom Right */}
-                <div className="absolute bottom-[-20%] right-[-10%] w-[40vw] h-[40vw] bg-purple-500/[0.06] rounded-full blur-[140px] animate-slow-spin" style={{ animationDirection: "reverse" }} />
-                {/* Soft Blue Center */}
-                <div className="absolute top-[20%] right-[10%] w-[40vw] h-[40vw] bg-blue-400/[0.03] rounded-full blur-[120px] animate-pulse-slow" />
-
-                <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.15] brightness-110 contrast-125 mix-blend-soft-light" />
-            </div>
+            <MarketingBackground />
 
             <div className="relative z-10">
-                <Navbar />
+                <MarketingNav />
                 <main>
                     <Hero />
                     <Comparison />
