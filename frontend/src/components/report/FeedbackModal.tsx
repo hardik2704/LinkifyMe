@@ -8,10 +8,10 @@ interface FeedbackModalProps {
     isOpen: boolean;
     onClose: () => void;
     email: string;
-    customerId: string;
+    userId: string;
 }
 
-export function FeedbackModal({ isOpen, onClose, email, customerId }: FeedbackModalProps) {
+export function FeedbackModal({ isOpen, onClose, email, userId }: FeedbackModalProps) {
     const [hasSubmitted, setHasSubmitted] = useState(false);
 
     return (
@@ -60,7 +60,7 @@ export function FeedbackModal({ isOpen, onClose, email, customerId }: FeedbackMo
                             <div className="p-6">
                                 <FeedbackForm
                                     email={email}
-                                    customerId={customerId}
+                                    userId={userId}
                                     onSubmitSuccess={() => {
                                         setHasSubmitted(true);
                                         setTimeout(onClose, 2500);

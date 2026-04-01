@@ -34,7 +34,7 @@ class PDFService:
         self,
         scores: dict[str, Any],
         profile: dict[str, Any],
-        customer_id: str,
+        user_id: str,
     ) -> str:
         """
         Generate styled HTML report from scoring data.
@@ -42,7 +42,7 @@ class PDFService:
         Args:
             scores: Pre-scores or AI scores dict
             profile: Profile information dict
-            customer_id: Customer ID for the report
+            user_id: User ID for the report
             
         Returns:
             Complete HTML string ready for PDF conversion
@@ -285,7 +285,7 @@ class PDFService:
         <div class="header">
             <h1>🔍 LinkedIn Profile Audit Report</h1>
             <p class="subtitle">Personalized analysis for {first_name}</p>
-            <p class="meta">Report ID: {customer_id} | Generated: {datetime.now().strftime("%B %d, %Y")}</p>
+            <p class="meta">Report ID: {user_id} | Generated: {datetime.now().strftime("%B %d, %Y")}</p>
         </div>
         
         <div class="score-hero">
@@ -459,7 +459,7 @@ class PDFService:
         self,
         scores: dict[str, Any],
         profile: dict[str, Any],
-        customer_id: str,
+        user_id: str,
     ) -> tuple[bytes, str]:
         """
         Complete PDF report generation.
@@ -470,16 +470,16 @@ class PDFService:
         Args:
             scores: Pre-scores or AI scores dict
             profile: Profile information
-            customer_id: Customer ID
+            user_id: User ID
             
         Returns:
             Tuple of (pdf_bytes, filename)
         """
         first_name = profile.get("firstName", "") or profile.get("first_name", "") or "User"
-        filename = f"LinkifyMe_Report_{first_name}_{customer_id}.pdf"
+        filename = f"LinkifyMe_Report_{first_name}_{user_id}.pdf"
         
         # Generate HTML
-        html = self.generate_report_html(scores, profile, customer_id)
+        html = self.generate_report_html(scores, profile, user_id)
         
         # Generate PDF
         if self._pdfshift_api_key:

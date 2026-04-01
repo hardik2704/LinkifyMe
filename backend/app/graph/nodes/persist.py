@@ -18,7 +18,7 @@ def write_scores(state: LinkifyState) -> LinkifyState:
     Uses the new flat format with section scores and reasonings.
     Calculates weighted final score and builds Remarks with contribution breakdown.
     
-    Input: scores, ps_row, customer_id, scraped_profile
+    Input: scores, ps_row, user_id, scraped_profile
     Output: Sheet updated with scoring data
     """
     sheets = get_sheets_service()
@@ -30,7 +30,7 @@ def write_scores(state: LinkifyState) -> LinkifyState:
     if not ps_row:
         sheets.append_activity_log(
             unique_id=state["unique_id"],
-            customer_id=state.get("customer_id"),
+            user_id=state.get("user_id"),
             event_type="write_scores",
             status="error",
             message="No Profile Scoring row found",
@@ -123,7 +123,7 @@ def write_scores(state: LinkifyState) -> LinkifyState:
 
     # Build update dict matching the column structure
     update_data = {
-        "customer_id": state.get("customer_id", ""),
+        "user_id": state.get("user_id", ""),
         "attempt_id": state.get("attempt_id", ""),
         "linkedin_url": linkedin_url,
         "first_name": first_name,
@@ -168,10 +168,21 @@ def write_scores(state: LinkifyState) -> LinkifyState:
     if pi_row:
         sheets.update_profile_info(pi_row, {"scrape_status": "completed"})
     
+    # Backfill user name in Users sheet from scraped profile
+    user_id = state.get("user_id")
+    if user_id and first_name:
+        last_name = scraped_profile.get("lastName", "")
+        full_name = f"{first_name} {last_name}".strip()
+        existing = sheets.find_user_by_linkedin_url(state.get("linkedin_url", ""))
+        if existing:
+            row_num, user_data = existing
+            if not user_data.get("name"):
+                sheets.update_user(row_num, {"name": full_name})
+    
     # Log the activity
     sheets.append_activity_log(
         unique_id=state["unique_id"],
-        customer_id=state.get("customer_id"),
+        user_id=state.get("user_id"),
         event_type="write_scores",
         status="success",
         message=f"Scores written to sheet. Weighted Final Score: {final_weighted_score}/100",

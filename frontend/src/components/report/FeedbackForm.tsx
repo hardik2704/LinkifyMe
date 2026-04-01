@@ -7,7 +7,7 @@ import { submitFeedback } from "@/lib/api";
 
 interface FeedbackFormProps {
     email: string;
-    customerId: string;
+    userId: string;
     onSubmitSuccess?: () => void;
     compact?: boolean;
 }
@@ -41,7 +41,7 @@ function StarRating({ value, onChange, label }: { value: number; onChange: (v: n
     );
 }
 
-export function FeedbackForm({ email, customerId, onSubmitSuccess, compact }: FeedbackFormProps) {
+export function FeedbackForm({ email, userId, onSubmitSuccess, compact }: FeedbackFormProps) {
     const [wouldRefer, setWouldRefer] = useState(0);
     const [wasHelpful, setWasHelpful] = useState(0);
     const [suggestions, setSuggestions] = useState("");
@@ -62,7 +62,7 @@ export function FeedbackForm({ email, customerId, onSubmitSuccess, compact }: Fe
         try {
             await submitFeedback({
                 email: email || "anonymous@linkifyme.com",
-                customer_id: customerId,
+                user_id: userId,
                 would_refer: wouldRefer,
                 was_helpful: wasHelpful,
                 suggestions: suggestions || undefined,

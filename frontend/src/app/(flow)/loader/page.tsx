@@ -122,8 +122,8 @@ export default function LoaderPage() {
 
                 console.log("[Loader] isComplete:", isComplete, "attempt_id:", status.attempt_id);
 
-                // Use attempt_id for report URL (primary), fall back to customer_id
-                const reportId = status.attempt_id || status.customer_id;
+                // Use attempt_id for report URL (primary), fall back to user_id
+                const reportId = status.attempt_id || status.user_id;
 
                 if (isComplete && reportId) {
                     // Mark as terminal to stop further polling

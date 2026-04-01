@@ -228,7 +228,7 @@ async def get_status(unique_id: str, force_sheets: bool = False):
         # This prevents 404 spam in logs
         return StatusResponse(
             unique_id=unique_id,
-            customer_id=None,
+            user_id=None,
             scrape_status="not_found",
             payment_status="pending",
             current_step="unknown",
@@ -268,7 +268,7 @@ async def get_status(unique_id: str, force_sheets: bool = False):
     elif scrape_status == "scraping":
         current_step = "scraping"
         progress = 40
-    elif state.get("customer_id"):
+    elif state.get("attempt_id"):
         current_step = "scraping"
         progress = 25
     elif state.get("is_valid"):
@@ -283,8 +283,8 @@ async def get_status(unique_id: str, force_sheets: bool = False):
     
     return StatusResponse(
         unique_id=unique_id,
-        customer_id=state.get("customer_id"),
-        attempt_id=state.get("attempt_id"),  # ATT-LM-XXXXX-X for report URL
+        user_id=state.get("user_id"),
+        attempt_id=state.get("attempt_id"),  # ATT-USR-XXXXX-X for report URL
         scrape_status=scrape_status,
         payment_status=payment_status,
         current_step=current_step,
@@ -619,7 +619,7 @@ async def get_report(report_id: str):
     top_priorities = [f"Improve {s.title}" for s in needs_work[:3]]
     
     return ReportResponse(
-        customer_id=user_id or report_id,  # Using user_id (from scoring) or fallback to report_id
+        user_id=user_id or report_id,  # Using user_id (from scoring) or fallback to report_id
         profile=profile,
         overall_score=overall_score,
         grade_label=grade,
@@ -703,17 +703,27 @@ async def confirm_payment(
         "razorpay_payment_id": request.razorpay_payment_id,
     })
 
-    # Update sheets if pc_row exists
+    # Update Payment Confirmation sheet with full Razorpay details
     sheets = get_sheets_service()
-    pc_row = state.get("pc_row")
-    if pc_row:
-        sheets.update_payment_confirmation(pc_row, {
+    user_id = state.get("user_id")
+    
+    if request.status == "succeeded" and user_id:
+        # Use confirm_payment_success to properly store all payment fields and credit attempts
+        sheets.confirm_payment_success(
+            user_id=user_id,
+            payment_id=request.razorpay_payment_id or "",
+            gateway_id=request.razorpay_payment_id or "",  # Razorpay payment ID is the gateway ID
+            amount=str(request.amount or ""),
+        )
+    elif state.get("pc_row"):
+        # Payment failed — just update the status
+        sheets.update_payment_confirmation(state["pc_row"], {
             "payment_status": request.status,
         })
 
     sheets.append_activity_log(
         unique_id=unique_id,
-        customer_id=state.get("customer_id"),
+        user_id=state.get("user_id"),
         event_type="payment",
         status="success" if request.status == "succeeded" else "failed",
         message=f"Payment {request.status}",
@@ -746,45 +756,45 @@ async def payment_webhook(request: PaymentWebhookRequest):
     
     sheets.append_activity_log(
         unique_id="webhook",
-        customer_id=request.customer_id,
+        user_id=request.user_id,
         event_type="payment_webhook",
         status="success" if request.status == "succeeded" else "error",
-        message=f"Payment {request.status} for {request.customer_id}",
+        message=f"Payment {request.status} for {request.user_id}",
     )
     
-    return {"status": "received", "customer_id": request.customer_id}
+    return {"status": "received", "user_id": request.user_id}
 
 
 # === Pre-Scoring Endpoints ===
 
-@router.get("/pre-scores/{customer_id}")
-async def get_customer_pre_scores(customer_id: str, persona: str = "big_company_recruiter"):
+@router.get("/pre-scores/{user_id}")
+async def get_user_pre_scores(user_id: str, persona: str = "big_company_recruiter"):
     """
-    Get deterministic pre-scores for a customer.
+    Get deterministic pre-scores for a user.
     
     Uses rule-based scoring (no AI API call).
-    Note: customer_id parameter kept for backward compatibility, but now expects attempt_id.
+    Accepts user_id or attempt_id as the path parameter.
     """
     sheets = get_sheets_service()
     
     # Find profile info
-    result = sheets.find_profile_by_unique_id(customer_id)
+    result = sheets.find_profile_by_unique_id(user_id)
     if not result:
         # Try finding by attempt_id in scoring sheet
-        scoring_data = sheets.get_scores_by_attempt_id(customer_id)
+        scoring_data = sheets.get_scores_by_attempt_id(user_id)
         if not scoring_data:
-            raise HTTPException(status_code=404, detail="Customer not found")
+            raise HTTPException(status_code=404, detail="User not found")
         data = scoring_data
         # We need the scraped profile - check cache
-        if customer_id in _status_cache:
-            profile = _status_cache[customer_id].get("scraped_profile", {})
-            linkedin_url = _status_cache[customer_id].get("linkedin_url", "")
+        if user_id in _status_cache:
+            profile = _status_cache[user_id].get("scraped_profile", {})
+            linkedin_url = _status_cache[user_id].get("linkedin_url", "")
         else:
             raise HTTPException(status_code=404, detail="Profile data not found")
     else:
         _, data = result
         # Check cache for scraped profile
-        unique_id = data.get("unique_id", customer_id)
+        unique_id = data.get("unique_id", user_id)
         if unique_id in _status_cache:
             profile = _status_cache[unique_id].get("scraped_profile", {})
             linkedin_url = _status_cache[unique_id].get("linkedin_url", "")
@@ -799,7 +809,7 @@ async def get_customer_pre_scores(customer_id: str, persona: str = "big_company_
         scores = get_pre_scores(
             profile=profile,
             linkedin_url=linkedin_url,
-            customer_id=customer_id,
+            user_id=user_id,
             persona=persona
         )
         return scores
@@ -855,7 +865,7 @@ async def submit_feedback(request: FeedbackRequest):
     try:
         sheets.create_feedback(
             email=request.email,
-            customer_id=request.customer_id,
+            user_id=request.user_id,
             would_refer=request.would_refer,
             was_helpful=request.was_helpful,
             suggestions=request.suggestions,
@@ -902,7 +912,7 @@ async def get_dashboard_stats():
                 job_ids.add(uid)
                 recent_jobs.append({
                     "unique_id": uid,
-                    "customer_id": log.get("customer_id", ""),
+                    "user_id": log.get("user_id", ""),
                     "event": log.get("event_type", ""),
                     "status": log.get("status", ""),
                     "timestamp": log.get("timestamp", ""),
@@ -975,8 +985,8 @@ async def detailed_health_check():
 
 # === PDF Generation (Standalone - NOT part of agent workflow) ===
 
-@router.post("/generate-pdf/{customer_id}")
-async def generate_pdf_report(customer_id: str, persona: str = "big_company_recruiter"):
+@router.post("/generate-pdf/{user_id}")
+async def generate_pdf_report(user_id: str, persona: str = "big_company_recruiter"):
     """
     Generate PDF report for a customer.
     
@@ -989,18 +999,18 @@ async def generate_pdf_report(customer_id: str, persona: str = "big_company_recr
     sheets = get_sheets_service()
     
     # Get scoring data by attempt_id
-    scoring_data = sheets.get_scores_by_attempt_id(customer_id)
+    scoring_data = sheets.get_scores_by_attempt_id(user_id)
     if not scoring_data:
         raise HTTPException(status_code=404, detail="Scoring data not found")
     
     # Get profile data from cache or sheets
     profile = {}
-    if customer_id in _status_cache:
-        profile = _status_cache[customer_id].get("scraped_profile", {})
-        linkedin_url = _status_cache[customer_id].get("linkedin_url", "")
+    if user_id in _status_cache:
+        profile = _status_cache[user_id].get("scraped_profile", {})
+        linkedin_url = _status_cache[user_id].get("linkedin_url", "")
     else:
         # Try to find by unique_id
-        profile_result = sheets.find_profile_by_unique_id(customer_id)
+        profile_result = sheets.find_profile_by_unique_id(user_id)
         if profile_result:
             _, profile_data = profile_result
             profile = {
@@ -1014,7 +1024,7 @@ async def generate_pdf_report(customer_id: str, persona: str = "big_company_recr
     # Generate pre-scores if we have profile data
     if profile:
         try:
-            scores = get_pre_scores(profile, linkedin_url, customer_id, persona)
+            scores = get_pre_scores(profile, linkedin_url, user_id, persona)
         except Exception:
             # Fallback to stored scoring data
             scores = {
@@ -1033,12 +1043,12 @@ async def generate_pdf_report(customer_id: str, persona: str = "big_company_recr
             "Experience Score": float(scoring_data.get("experience_score") or 5),
             "Connection Score": float(scoring_data.get("connections_score") or 5),
         }
-        profile = {"firstName": customer_id}
+        profile = {"firstName": user_id}
     
     # Generate PDF
     pdf_service = get_pdf_service()
     try:
-        pdf_bytes, filename = await pdf_service.generate_report(scores, profile, customer_id)
+        pdf_bytes, filename = await pdf_service.generate_report(scores, profile, user_id)
     except ImportError as e:
         raise HTTPException(status_code=500, detail=str(e))
     except Exception as e:
@@ -1053,8 +1063,8 @@ async def generate_pdf_report(customer_id: str, persona: str = "big_company_recr
     )
 
 
-@router.get("/generate-pdf-preview/{customer_id}")
-async def preview_pdf_html(customer_id: str, persona: str = "big_company_recruiter"):
+@router.get("/generate-pdf-preview/{user_id}")
+async def preview_pdf_html(user_id: str, persona: str = "big_company_recruiter"):
     """
     Preview the HTML that would be used for PDF generation.
     
@@ -1081,7 +1091,7 @@ async def preview_pdf_html(customer_id: str, persona: str = "big_company_recruit
     }
     
     pdf_service = get_pdf_service()
-    html = pdf_service.generate_report_html(scores, profile, customer_id)
+    html = pdf_service.generate_report_html(scores, profile, user_id)
     
     return HTMLResponse(content=html)
 
@@ -1095,7 +1105,7 @@ async def debug_get_cache(unique_id: str):
     state = _status_cache[unique_id]
     return {
         "unique_id": unique_id,
-        "customer_id": state.get("customer_id"),
+        "user_id": state.get("user_id"),
         "scrape_status": state.get("scrape_status"),
         "ai_scoring_status": state.get("ai_scoring_status"),
         "scores": state.get("scores", {}),
@@ -1189,7 +1199,7 @@ async def get_user_attempts(user_id: str):
         attempts=[
             AttemptSummary(
                 attempt_id=a["attempt_id"],
-                customer_id=a["customer_id"],
+                user_id=a.get("customer_id", a["attempt_id"]),  # Legacy compat
                 final_score=a["final_score"],
                 timestamp=a["timestamp"],
                 linkedin_url=a["linkedin_url"],
@@ -1278,7 +1288,7 @@ async def compare_attempts(current_attempt_id: str, previous_attempt_id: str):
     return ComparisonResponse(
         current_attempt=AttemptSummary(
             attempt_id=current_attempt_id,
-            customer_id=current_scoring.get("customer_id", ""),
+            user_id=current_scoring.get("user_id", ""),
             final_score=curr_total,
             timestamp=current_scoring.get("timestamp", ""),
             linkedin_url=current_scoring.get("linkedin_url", ""),
@@ -1286,7 +1296,7 @@ async def compare_attempts(current_attempt_id: str, previous_attempt_id: str):
         ),
         previous_attempt=AttemptSummary(
             attempt_id=previous_attempt_id,
-            customer_id=previous_scoring.get("customer_id", ""),
+            user_id=previous_scoring.get("user_id", ""),
             final_score=prev_total,
             timestamp=previous_scoring.get("timestamp", ""),
             linkedin_url=previous_scoring.get("linkedin_url", ""),

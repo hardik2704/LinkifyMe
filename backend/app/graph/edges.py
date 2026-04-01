@@ -9,10 +9,10 @@ from typing import Literal
 from app.graph.state import LinkifyState
 
 
-def route_after_validate(state: LinkifyState) -> Literal["allocate_customer_id", "end_invalid"]:
+def route_after_validate(state: LinkifyState) -> Literal["allocate_attempt_id", "end_invalid"]:
     """Route based on validation result."""
     if state.get("is_valid", False):
-        return "allocate_customer_id"
+        return "allocate_attempt_id"
     return "end_invalid"
 
 

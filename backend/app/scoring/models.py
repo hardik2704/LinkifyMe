@@ -38,7 +38,7 @@ class DebugInfo(BaseModel):
 class ScoringResult(BaseModel):
     """Complete scoring result for API/Google Sheets."""
     
-    customer_id: str = Field(alias="Customer ID")
+    user_id: str = Field(alias="User ID")
     linkedin_profile: str = Field(alias="LinkedIn Profile")
     first_name: str = Field(alias="First Name")
     headline_score: float = Field(ge=1.0, le=10.0, alias="Headline Score")

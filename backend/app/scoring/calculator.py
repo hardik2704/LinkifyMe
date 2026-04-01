@@ -24,7 +24,7 @@ QUALITY_GATES = {
 def get_pre_scores(
     profile: dict,
     linkedin_url: str,
-    customer_id: Optional[str] = None,
+    user_id: Optional[str] = None,
     persona: str = "big_company_recruiter"
 ) -> dict[str, Any]:
     """
@@ -33,7 +33,7 @@ def get_pre_scores(
     Args:
         profile: Scraped LinkedIn profile data
         linkedin_url: The LinkedIn profile URL
-        customer_id: Optional customer ID
+        user_id: Optional user ID
         persona: Which persona weights to use (default: big_company_recruiter)
         
     Returns:
@@ -107,7 +107,7 @@ def get_pre_scores(
     
     result = {
         # Required output columns
-        "Customer ID": customer_id or "PENDING",
+        "User ID": user_id or "PENDING",
         "LinkedIn Profile": linkedin_url,
         "First Name": first_name,
         "Headline Score": section_results["headline"]["after_rules"],

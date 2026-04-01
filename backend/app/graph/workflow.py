@@ -14,7 +14,7 @@ from app.graph.edges import (
 )
 from app.graph.nodes.intake import intake_to_sheets
 from app.graph.nodes.validate import validate_inputs
-from app.graph.nodes.allocate import allocate_customer_id
+from app.graph.nodes.allocate import allocate_attempt_id
 from app.graph.nodes.scrape import start_scrape, poll_apify, fetch_dataset
 from app.graph.nodes.scoring import ai_scoring
 from app.graph.nodes.persist import write_scores
@@ -28,7 +28,7 @@ def build_scrape_workflow() -> StateGraph:
     Flow:
     1. intake_to_sheets - Create initial record
     2. validate_inputs - Validate LinkedIn URL
-    3. allocate_customer_id - Generate Customer ID
+    3. allocate_attempt_id - Generate Attempt ID
     4. start_scrape - Start Apify scrape
     5. poll_apify - Wait for scrape completion
     6. fetch_dataset - Get scraped data
@@ -41,7 +41,7 @@ def build_scrape_workflow() -> StateGraph:
     # Add nodes
     workflow.add_node("intake_to_sheets", intake_to_sheets)
     workflow.add_node("validate_inputs", validate_inputs)
-    workflow.add_node("allocate_customer_id", allocate_customer_id)
+    workflow.add_node("allocate_attempt_id", allocate_attempt_id)
     workflow.add_node("start_scrape", start_scrape)
     workflow.add_node("poll_apify", poll_apify)
     workflow.add_node("fetch_dataset", fetch_dataset)
@@ -61,13 +61,13 @@ def build_scrape_workflow() -> StateGraph:
         "validate_inputs",
         route_after_validate,
         {
-            "allocate_customer_id": "allocate_customer_id",
+            "allocate_attempt_id": "allocate_attempt_id",
             "end_invalid": "end_invalid",
         }
     )
 
     # Skip payment — go straight to scraping
-    workflow.add_edge("allocate_customer_id", "start_scrape")
+    workflow.add_edge("allocate_attempt_id", "start_scrape")
 
     workflow.add_edge("start_scrape", "poll_apify")
 

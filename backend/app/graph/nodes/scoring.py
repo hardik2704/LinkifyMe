@@ -41,7 +41,7 @@ def ai_scoring(state: LinkifyState) -> LinkifyState:
         
         sheets.append_activity_log(
             unique_id=state["unique_id"],
-            customer_id=state.get("customer_id"),
+            user_id=state.get("user_id"),
             event_type="deterministic_scoring",
             status="error",
             message=error_message,
@@ -63,14 +63,14 @@ def ai_scoring(state: LinkifyState) -> LinkifyState:
     persona = persona_map.get(target_group, "big_company_recruiter")
     
     linkedin_url = state.get("linkedin_url", "")
-    customer_id = state.get("customer_id", "")
+    user_id = state.get("user_id", "")
     
     try:
         # Run DETERMINISTIC scoring using rule-based scorers
         scores = get_pre_scores(
             profile=scraped_profile,
             linkedin_url=linkedin_url,
-            customer_id=customer_id,
+            user_id=user_id,
             persona=persona
         )
         
@@ -143,7 +143,7 @@ def ai_scoring(state: LinkifyState) -> LinkifyState:
         
         sheets.append_activity_log(
             unique_id=state["unique_id"],
-            customer_id=state.get("customer_id"),
+            user_id=state.get("user_id"),
             event_type="deterministic_scoring",
             status="error",
             message=error_message,
@@ -158,7 +158,7 @@ def ai_scoring(state: LinkifyState) -> LinkifyState:
     # Log the activity
     sheets.append_activity_log(
         unique_id=state["unique_id"],
-        customer_id=state.get("customer_id"),
+        user_id=state.get("user_id"),
         event_type="deterministic_scoring",
         status="success",
         message=f"Deterministic scoring complete. Overall score: {overall_score}/100 (persona: {persona})",

@@ -41,7 +41,7 @@ def start_scrape(state: LinkifyState) -> LinkifyState:
         
         sheets.append_activity_log(
             unique_id=state["unique_id"],
-            customer_id=state.get("customer_id"),
+            user_id=state.get("user_id"),
             event_type="scrape_start",
             status="error",
             message=error_message,
@@ -66,7 +66,7 @@ def start_scrape(state: LinkifyState) -> LinkifyState:
     # Log the activity
     sheets.append_activity_log(
         unique_id=state["unique_id"],
-        customer_id=state.get("customer_id"),
+        user_id=state.get("user_id"),
         event_type="scrape_start",
         status="success",
         message=f"Apify run started: {apify_run_id}",
@@ -121,7 +121,7 @@ def poll_apify(state: LinkifyState) -> LinkifyState:
         
         sheets.append_activity_log(
             unique_id=state["unique_id"],
-            customer_id=state.get("customer_id"),
+            user_id=state.get("user_id"),
             event_type="scrape_poll",
             status="error",
             message=error_message,
@@ -137,7 +137,7 @@ def poll_apify(state: LinkifyState) -> LinkifyState:
     status = "success" if apify_status == "SUCCEEDED" else "error"
     sheets.append_activity_log(
         unique_id=state["unique_id"],
-        customer_id=state.get("customer_id"),
+        user_id=state.get("user_id"),
         event_type="scrape_poll",
         status=status,
         message=f"Apify run status: {apify_status}",
@@ -254,7 +254,7 @@ def fetch_dataset(state: LinkifyState) -> LinkifyState:
         
         sheets.append_activity_log(
             unique_id=state["unique_id"],
-            customer_id=state.get("customer_id"),
+            user_id=state.get("user_id"),
             event_type="fetch_dataset",
             status="error",
             message=error_message,
@@ -328,7 +328,7 @@ def fetch_dataset(state: LinkifyState) -> LinkifyState:
     # Log the activity
     sheets.append_activity_log(
         unique_id=state["unique_id"],
-        customer_id=state.get("customer_id"),
+        user_id=state.get("user_id"),
         event_type="fetch_dataset",
         status="success",
         message=f"Profile data fetched: {scraped_profile.get('firstName', 'Unknown')} {scraped_profile.get('lastName', '')}",

@@ -14,7 +14,7 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 interface LogEntry {
     timestamp: string;
     unique_id: string;
-    customer_id?: string;
+    user_id?: string;
     event_type: string;
     status: string;
     message: string;

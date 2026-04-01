@@ -30,8 +30,7 @@ class LinkifyState(TypedDict, total=False):
     
     # === Identifiers ===
     unique_id: str              # UUID for this request
-    customer_id: Optional[str]  # Sequential ID (e.g., "LM-00042")
-    attempt_id: Optional[str]   # Format: ATT-LM-00042-1
+    attempt_id: Optional[str]   # Format: ATT-USR-00001-01
     user_id: Optional[str]      # User ID (e.g., "USR-00001") - same across attempts
     
     # === User Tracking ===

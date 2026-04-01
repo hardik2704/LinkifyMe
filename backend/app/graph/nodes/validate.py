@@ -59,7 +59,7 @@ def validate_inputs(state: LinkifyState) -> LinkifyState:
     
     sheets.append_activity_log(
         unique_id=state["unique_id"],
-        customer_id=state.get("customer_id"),
+        user_id=state.get("user_id"),
         event_type="validate",
         status=status,
         message=message,

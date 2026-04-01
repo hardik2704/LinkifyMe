@@ -43,7 +43,7 @@ def wait_payment_interrupt(state: LinkifyState) -> LinkifyState:
     # Log the activity
     sheets.append_activity_log(
         unique_id=state["unique_id"],
-        customer_id=state.get("customer_id"),
+        user_id=state.get("user_id"),
         event_type="payment",
         status="success",
         message=f"Payment {payment_status}",

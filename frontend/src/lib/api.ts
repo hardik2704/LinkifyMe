@@ -21,7 +21,7 @@ export interface UserInfo {
 
 export interface AttemptSummary {
     attempt_id: string;
-    customer_id: string;
+    user_id: string;
     final_score: number;
     timestamp: string;
     linkedin_url: string;
@@ -84,7 +84,7 @@ export interface ConfirmPaymentResponse {
 
 export interface FeedbackRequest {
     email: string;
-    customer_id: string;
+    user_id: string;
     would_refer: number;
     was_helpful: number;
     suggestions?: string;

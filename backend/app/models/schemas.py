@@ -34,7 +34,7 @@ class IntakeRequest(BaseModel):
 class PaymentWebhookRequest(BaseModel):
     """Request body for payment webhook."""
 
-    customer_id: str = Field(..., description="Customer ID")
+    user_id: str = Field(..., description="User ID")
     status: Literal["succeeded", "failed"] = Field(..., description="Payment status")
     payment_gateway_id: Optional[str] = Field(None, description="External payment reference")
     amount: Optional[float] = Field(None, description="Payment amount")
@@ -88,8 +88,8 @@ class StatusResponse(BaseModel):
     """Response for status check."""
     
     unique_id: str
-    customer_id: Optional[str] = None
-    attempt_id: Optional[str] = None  # ATT-LM-XXXXX-X format for report URL
+    user_id: Optional[str] = None
+    attempt_id: Optional[str] = None  # ATT-USR-XXXXX-X format for report URL
     scrape_status: str
     payment_status: str
     current_step: str
@@ -115,7 +115,7 @@ class SectionScore(BaseModel):
 class ReportResponse(BaseModel):
     """Full report response."""
     
-    customer_id: str
+    user_id: str
     profile: dict[str, Any]
     overall_score: float
     grade_label: str
@@ -137,7 +137,7 @@ class ActivityLogEntry(BaseModel):
     
     timestamp: str
     unique_id: str
-    customer_id: Optional[str] = None
+    user_id: Optional[str] = None
     event_type: str
     status: str
     message: str
@@ -164,7 +164,7 @@ class FeedbackRequest(BaseModel):
     """Request body for submitting feedback."""
     
     email: EmailStr = Field(..., description="User email address")
-    customer_id: str = Field(..., description="Customer ID from analysis")
+    user_id: str = Field(..., description="User ID from analysis")
     would_refer: int = Field(..., ge=1, le=5, description="Would refer rating 1-5")
     was_helpful: int = Field(..., ge=1, le=5, description="Was helpful rating 1-5")
     suggestions: Optional[str] = Field(None, description="Optional suggestions")
@@ -229,7 +229,7 @@ class AttemptSummary(BaseModel):
     """Summary of a single analysis attempt."""
     
     attempt_id: str
-    customer_id: str
+    user_id: str
     final_score: int
     timestamp: str
     linkedin_url: str

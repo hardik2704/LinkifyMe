@@ -720,11 +720,11 @@ class GoogleSheetsService:
     
     DEFAULT_ATTEMPTS_PER_PAYMENT = 3
     
-    def create_payment_confirmation(self, customer_id: str, payment_id: str = "") -> int:
+    def create_payment_confirmation(self, user_id: str, payment_id: str = "") -> int:
         """Create a new Payment Confirmation row. Returns row number.
         
         Column structure (14 columns):
-        payment_id | customer_id | payment_status | payment_gateway_id | amount |
+        payment_id | user_id | payment_status | payment_gateway_id | amount |
         created_at | updated_at | payment_ids | payment_count | attempts_per_payment |
         attempts_granted_total | attempts_used_total | attempts_remaining | last_paid_at
         """
@@ -733,7 +733,7 @@ class GoogleSheetsService:
         
         row_data = [
             payment_id,          # payment_id (col 1)
-            customer_id,         # customer_id (col 2)
+            user_id,             # user_id (col 2)
             "pending",           # payment_status (col 3)
             "",                  # payment_gateway_id (col 4)
             "",                  # amount (col 5)
@@ -757,7 +757,7 @@ class GoogleSheetsService:
         
         column_map = {
             "payment_id": 1,
-            "customer_id": 2,
+            "user_id": 2,
             "payment_status": 3,
             "payment_gateway_id": 4,
             "amount": 5,
@@ -789,7 +789,7 @@ class GoogleSheetsService:
         
         return {
             "payment_id": values[0],
-            "customer_id": values[1],
+            "user_id": values[1],
             "payment_status": values[2],
             "payment_gateway_id": values[3],
             "amount": values[4],
@@ -804,29 +804,29 @@ class GoogleSheetsService:
             "last_paid_at": values[13],
         }
     
-    def _find_payment_confirmation_row_by_customer(self, customer_id: str) -> Optional[int]:
-        """Find payment confirmation row by customer_id. Returns row number or None."""
+    def _find_payment_row_by_user_id(self, user_id: str) -> Optional[int]:
+        """Find payment confirmation row by user_id. Returns row number or None."""
         sheet = self._get_sheet(SHEET_PAYMENT_CONFIRMATION)
         all_vals = sheet.get_all_values()
         
         # Row 1 might be header, start from row 2
         for i in range(1, len(all_vals)):
             row_vals = all_vals[i]
-            # customer_id is column 2 (index 1)
-            if len(row_vals) >= 2 and row_vals[1] == customer_id:
+            # user_id is column 2 (index 1)
+            if len(row_vals) >= 2 and row_vals[1] == user_id:
                 return i + 1  # 1-indexed row number
         return None
     
     def confirm_payment_success(
         self,
-        customer_id: str,
+        user_id: str,
         payment_id: str,
         gateway_id: str,
         amount: str,
         attempts_per_payment: int = None,
     ) -> int:
         """
-        Upserts a customer row:
+        Upserts a user payment row:
         - stores latest payment info
         - increments payment_count
         - unlocks attempts_per_payment new attempts
@@ -836,11 +836,11 @@ class GoogleSheetsService:
             attempts_per_payment = self.DEFAULT_ATTEMPTS_PER_PAYMENT
             
         now = datetime.utcnow().isoformat()
-        row = self._find_payment_confirmation_row_by_customer(customer_id)
+        row = self._find_payment_row_by_user_id(user_id)
         
         # Create if not exists
         if row is None:
-            row = self.create_payment_confirmation(customer_id=customer_id, payment_id=payment_id)
+            row = self.create_payment_confirmation(user_id=user_id, payment_id=payment_id)
         
         pc = self.get_payment_confirmation(row)
         
@@ -881,13 +881,13 @@ class GoogleSheetsService:
         
         return row
     
-    def consume_attempt(self, customer_id: str, attempts: int = 1) -> dict[str, Any]:
+    def consume_attempt(self, user_id: str, attempts: int = 1) -> dict[str, Any]:
         """
         Deduct attempts from remaining.
         Returns:
           { ok: bool, attempts_remaining: int, upsell: bool }
         """
-        row = self._find_payment_confirmation_row_by_customer(customer_id)
+        row = self._find_payment_row_by_user_id(user_id)
         if row is None:
             return {"ok": False, "attempts_remaining": 0, "upsell": True}
         
@@ -915,7 +915,7 @@ class GoogleSheetsService:
     def append_activity_log(
         self,
         unique_id: str,
-        customer_id: Optional[str],
+        user_id: Optional[str],
         event_type: str,
         status: str,
         message: str,
@@ -933,7 +933,7 @@ class GoogleSheetsService:
             row_data = [
                 datetime.utcnow().isoformat(),
                 unique_id,
-                customer_id or "",
+                user_id or "",
                 event_type,
                 status,
                 message,
@@ -961,7 +961,7 @@ class GoogleSheetsService:
                 logs.append({
                     "timestamp": row[0],
                     "unique_id": row[1],
-                    "customer_id": row[2],
+                    "user_id": row[2],
                     "event_type": row[3],
                     "status": row[4],
                     "message": row[5],
@@ -987,7 +987,7 @@ class GoogleSheetsService:
     def create_feedback(
         self,
         email: str,
-        customer_id: str,
+        user_id: str,
         would_refer: int,
         was_helpful: int,
         suggestions: Optional[str] = None,
@@ -995,11 +995,12 @@ class GoogleSheetsService:
         """
         Store user feedback in the Feedback sheet.
         
-        Columns: Timestamp | User ID | Would Refer (1-5) | Was Helpful (1-5) | Suggestions
+        Columns: Timestamp | User ID | Email | Would Refer (1-5) | Was Helpful (1-5) | Suggestions
         """
         headers = [
             "Timestamp",
             "User ID",
+            "Email",
             "Would Refer (1-5)",
             "Was Helpful (1-5)",
             "Suggestions",
@@ -1009,7 +1010,8 @@ class GoogleSheetsService:
         
         row_data = [
             datetime.utcnow().isoformat(),
-            customer_id,
+            user_id,
+            email,
             would_refer,
             was_helpful,
             suggestions or "",

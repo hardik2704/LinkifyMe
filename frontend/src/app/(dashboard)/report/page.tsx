@@ -49,7 +49,7 @@ interface Section {
 }
 
 interface ReportData {
-    customer_id: string;
+    user_id: string;
     profile: {
         name: string;
         initial: string;
@@ -86,9 +86,9 @@ function getMilestoneText(currentStr: string | undefined, label: string): string
     return `You've crossed ${MILESTONES[MILESTONES.length - 1].toLocaleString()}+ ${label}! 🎉`;
 }
 
-// Default fallback data with all 12 sections (shown while loading or if no customer_id)
+// Default fallback data with all 12 sections (shown while loading or if no user_id)
 const defaultReport: ReportData = {
-    customer_id: "USR-00000",
+    user_id: "USR-00000",
     profile: {
         name: "Loading Profile...",
         initial: "?",
@@ -201,7 +201,7 @@ function ReportPageInner() {
     useEffect(() => {
         const fetchReport = async () => {
             const attemptId = searchParams.get("attempt_id") || sessionStorage.getItem("linkify_attempt_id");
-            const customerId = searchParams.get("customer_id") || sessionStorage.getItem("linkify_customer_id");
+            const userId = searchParams.get("customer_id") || searchParams.get("user_id") || sessionStorage.getItem("linkify_user_id");
 
             // Check if this is a shared view (no session data, only URL param)
             const isFromUrl = searchParams.has("attempt_id") && !sessionStorage.getItem("linkify_attempt_id");
@@ -216,7 +216,7 @@ function ReportPageInner() {
                 setPasswordVerified(true); // Owner - no password needed
             }
 
-            const reportId = attemptId || customerId;
+            const reportId = attemptId || userId;
 
             if (!reportId) {
                 setLoading(false);
@@ -487,7 +487,7 @@ function ReportPageInner() {
                                 <Card variant="elevated" className="p-6">
                                     <FeedbackForm
                                         email={userEmail}
-                                        customerId={report.customer_id}
+                                        userId={report.user_id}
                                         onSubmitSuccess={() => setFeedbackSubmitted(true)}
                                     />
                                 </Card>
@@ -502,7 +502,7 @@ function ReportPageInner() {
                 isOpen={feedbackModalOpen && !feedbackSubmitted}
                 onClose={() => setFeedbackModalOpen(false)}
                 email={userEmail}
-                customerId={report.customer_id}
+                userId={report.user_id}
             />
         </PageShell>
         </ReportContext.Provider>

@@ -54,7 +54,7 @@ def intake_to_sheets(state: LinkifyState) -> LinkifyState:
     
     sheets.append_activity_log(
         unique_id=state["unique_id"],
-        customer_id=None,
+        user_id=None,
         event_type="intake",
         status="success",
         message=log_message,
