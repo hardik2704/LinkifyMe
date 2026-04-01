@@ -255,9 +255,6 @@ export default function IntakePage() {
                                     readOnly={isReattempt}
                                     className={isReattempt ? "bg-slate-50 text-slate-500 cursor-not-allowed border-slate-200" : ""}
                                 />
-                                <p className="mt-1.5 text-xs text-slate-500">
-                                    We&apos;ll send your detailed report here
-                                </p>
                             </div>
 
                             <div>
@@ -301,8 +298,8 @@ export default function IntakePage() {
                                     placeholder="Select your target audience..."
                                     options={[
                                         { value: "recruiters", label: "Recruiters & Hiring Managers" },
-                                        { value: "clients", label: "Clients & Brands" },
-                                        { value: "vcs", label: "Investors & VCs" },
+                                        { value: "clients", label: "Clients & Brands [Work in Progress]" },
+                                        { value: "vcs", label: "Investors & VCs [Work in Progress]" },
                                     ]}
                                     value={targetGroup}
                                     onChange={(e) => setTargetGroup(e.target.value)}
