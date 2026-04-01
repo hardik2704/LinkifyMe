@@ -13,7 +13,7 @@ import { createPaymentLink, confirmPayment } from "@/lib/api";
 export default function PaymentPage() {
     const router = useRouter();
     const [error, setError] = useState<string | null>(null);
-    const [status, setStatus] = useState<"loading" | "redirecting" | "error">("loading");
+    const [status, setStatus] = useState<"loading" | "redirecting" | "error" | "returned">("loading");
 
     useEffect(() => {
         const uniqueId = sessionStorage.getItem("linkify_unique_id");
@@ -35,8 +35,10 @@ export default function PaymentPage() {
                     mobile: phone!,
                 });
 
-                // Dev bypass — payment is skipped
-                if (result.bypassed) {
+                const isReturning = sessionStorage.getItem("linkify_returning_user") === "true";
+
+                // Dev bypass or returning user bypass — payment is skipped
+                if (result.bypassed || isReturning) {
                     await confirmPayment({
                         unique_id: uniqueId!,
                         status: "succeeded",
@@ -46,9 +48,17 @@ export default function PaymentPage() {
                     return;
                 }
 
+                // Infinite loop protection
+                const redirectKey = `linkify_redirected_${uniqueId}`;
+                if (sessionStorage.getItem(redirectKey) === "true") {
+                    setStatus("returned");
+                    return;
+                }
+
                 // Redirect to Razorpay payment page
                 if (result.payment_link) {
                     setStatus("redirecting");
+                    sessionStorage.setItem(redirectKey, "true");
                     window.location.href = result.payment_link;
                 } else {
                     throw new Error("No payment link received");
@@ -91,6 +101,41 @@ export default function PaymentPage() {
                                             onClick={() => window.location.reload()}
                                         >
                                             Retry
+                                        </Button>
+                                    </div>
+                                </>
+                            ) : status === "returned" ? (
+                                <>
+                                    <div className="mx-auto h-16 w-16 rounded-2xl bg-amber-100 flex items-center justify-center mb-6">
+                                        <AlertCircle className="h-8 w-8 text-amber-500" />
+                                    </div>
+                                    <h1 className="font-display text-2xl font-bold text-slate-900 mb-2">
+                                        Payment Verification
+                                    </h1>
+                                    <p className="text-slate-600 mb-6">
+                                        It looks like you've already visited the payment gateway. If your payment was successful or already processed, you can proceed.
+                                    </p>
+                                    <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                                        <Button
+                                            variant="outline"
+                                            onClick={() => router.push("/intake")}
+                                        >
+                                            Start Over
+                                        </Button>
+                                        <Button
+                                            onClick={async () => {
+                                                const uniqueId = sessionStorage.getItem("linkify_unique_id");
+                                                if (!uniqueId) return router.push("/intake");
+                                                try {
+                                                    await confirmPayment({ unique_id: uniqueId, status: "succeeded" });
+                                                    sessionStorage.setItem("linkify_payment_confirmed", "true");
+                                                    router.push("/loader");
+                                                } catch (e) {
+                                                    setError("Could not trace payment. Try starting over.");
+                                                }
+                                            }}
+                                        >
+                                            Confirm Payment
                                         </Button>
                                     </div>
                                 </>
