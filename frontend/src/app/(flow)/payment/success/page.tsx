@@ -9,16 +9,12 @@ import { Container } from "@/components/layout/Container";
 import { GlassPanel } from "@/components/ui/GlassPanel";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
-import { ProgressRing } from "@/components/ui/ProgressRing";
 import { confirmPayment } from "@/lib/api";
-
-const REDIRECT_SECONDS = 3;
 
 export default function PaymentSuccessPage() {
     const router = useRouter();
     const [confirmStatus, setConfirmStatus] = useState<"confirming" | "confirmed" | "error">("confirming");
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
-    const [countdown, setCountdown] = useState(REDIRECT_SECONDS);
 
     // Confirm payment with backend on mount
     useEffect(() => {
@@ -47,26 +43,12 @@ export default function PaymentSuccessPage() {
             });
     }, [router]);
 
-    // Start countdown once payment is confirmed
+    // Silently redirect after 0.5s once payment is confirmed
     useEffect(() => {
         if (confirmStatus !== "confirmed") return;
-
-        const interval = setInterval(() => {
-            setCountdown((prev) => {
-                if (prev <= 1) {
-                    clearInterval(interval);
-                    router.push("/loader");
-                    return 0;
-                }
-                return prev - 1;
-            });
-        }, 1000);
-
-        return () => clearInterval(interval);
+        const timer = setTimeout(() => router.push("/loader"), 500);
+        return () => clearTimeout(timer);
     }, [confirmStatus, router]);
-
-    // Progress ring value: 100 → 0 as countdown goes 3 → 0
-    const ringProgress = (countdown / REDIRECT_SECONDS) * 100;
 
     // ── Error state ─────────────────────────────────────────────────────────
     if (confirmStatus === "error") {
@@ -164,12 +146,12 @@ export default function PaymentSuccessPage() {
                                 AI-powered LinkedIn analysis in the background.
                             </motion.p>
 
-                            {/* Countdown ring + redirect message */}
+                            {/* Confirming spinner / redirect notice */}
                             <motion.div
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
                                 transition={{ delay: 0.55, duration: 0.35 }}
-                                className="flex flex-col items-center gap-3 mb-8"
+                                className="flex justify-center mb-8"
                             >
                                 {confirmStatus === "confirming" ? (
                                     <div className="flex items-center gap-2 text-sm text-slate-400">
@@ -177,26 +159,10 @@ export default function PaymentSuccessPage() {
                                         Confirming payment…
                                     </div>
                                 ) : (
-                                    <>
-                                        <div className="relative flex items-center justify-center">
-                                            <ProgressRing
-                                                value={ringProgress}
-                                                size={72}
-                                                strokeWidth={4}
-                                                className="text-brand"
-                                            />
-                                            <span className="absolute font-display font-black text-xl text-brand">
-                                                {countdown}
-                                            </span>
-                                        </div>
-                                        <p className="text-sm text-slate-400">
-                                            Redirecting to your analysis in{" "}
-                                            <span className="font-semibold text-slate-600">
-                                                {countdown}s
-                                            </span>
-                                            …
-                                        </p>
-                                    </>
+                                    <div className="flex items-center gap-2 text-sm text-slate-400">
+                                        <span className="inline-block h-4 w-4 rounded-full border-2 border-emerald-300/40 border-t-emerald-500 animate-spin" />
+                                        Taking you to your analysis…
+                                    </div>
                                 )}
                             </motion.div>
 

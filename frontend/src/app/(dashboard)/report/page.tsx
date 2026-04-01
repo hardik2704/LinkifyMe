@@ -159,12 +159,21 @@ function ReportPageInner() {
 
         const shareUrl = `${window.location.origin}/report?attempt_id=${currentAttemptId}`;
 
+        // Build passcode from last 4 digits of the report owner's phone
+        const phoneDigits = (reportPhone || "").replace(/\D/g, "");
+        const passcode = phoneDigits.slice(-4);
+        const shareText = passcode
+            ? `${shareUrl}\nPasscode: "${passcode}"`
+            : shareUrl;
+
         // Try native share first (mobile)
         if (navigator.share) {
             try {
                 await navigator.share({
                     title: "My LinkifyMe Report",
-                    text: "Check out my LinkedIn profile analysis!",
+                    text: passcode
+                        ? `Check out my LinkedIn profile analysis!\nPasscode: "${passcode}"`
+                        : "Check out my LinkedIn profile analysis!",
                     url: shareUrl,
                 });
                 return;
@@ -174,12 +183,12 @@ function ReportPageInner() {
         }
 
         try {
-            await navigator.clipboard.writeText(shareUrl);
+            await navigator.clipboard.writeText(shareText);
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
         } catch {
             const textArea = document.createElement("textarea");
-            textArea.value = shareUrl;
+            textArea.value = shareText;
             document.body.appendChild(textArea);
             textArea.select();
             document.execCommand("copy");
@@ -187,7 +196,7 @@ function ReportPageInner() {
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
         }
-    }, [currentAttemptId]);
+    }, [currentAttemptId, reportPhone]);
 
     useEffect(() => {
         const fetchReport = async () => {

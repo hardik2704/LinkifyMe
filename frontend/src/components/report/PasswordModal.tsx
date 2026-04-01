@@ -67,7 +67,7 @@ export function PasswordModal({ isOpen, phone, onSuccess }: PasswordModalProps) 
                                 </div>
                                 <h3 className="text-lg font-bold text-white">Protected Report</h3>
                                 <p className="text-slate-400 text-sm mt-1">
-                                    Enter the last 4 digits of your phone number
+                                    Enter the last 4 digits of the sender&apos;s phone number
                                 </p>
                             </div>
 
@@ -110,7 +110,7 @@ export function PasswordModal({ isOpen, phone, onSuccess }: PasswordModalProps) 
                                 </button>
 
                                 <p className="text-xs text-center text-slate-400">
-                                    This is the phone number used during registration
+                                    This is the phone number used by the person who shared this report
                                 </p>
                             </form>
                         </motion.div>
