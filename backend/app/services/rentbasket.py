@@ -36,8 +36,9 @@ async def get_jwt_token() -> str:
 
     # Otherwise fetch from the API
     url = f"{settings.rentbasket_api_base}/get-jwt-token"
+    payload = {"app_key": "3Z9Wqa7PNXp"}
     async with httpx.AsyncClient(timeout=30) as client:
-        response = await client.get(url)
+        response = await client.post(url, json=payload)
         response.raise_for_status()
         data = response.json()
 
