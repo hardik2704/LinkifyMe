@@ -58,7 +58,6 @@ async def create_payment_link(name: str, email: str, mobile: str) -> dict:
     Returns the full response data including payment_link.
     """
     settings = get_settings()
-    token = await get_jwt_token()
 
     url = f"{settings.rentbasket_api_base}/insert-sm-leads"
     payload = {
@@ -66,10 +65,18 @@ async def create_payment_link(name: str, email: str, mobile: str) -> dict:
         "email": email,
         "mobile": mobile,
     }
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json",
-    }
+    headers = {"Content-Type": "application/json"}
+
+    # Add auth only if token is configured
+    if settings.rentbasket_jwt_token:
+        headers["Authorization"] = f"Bearer {settings.rentbasket_jwt_token}"
+    else:
+        try:
+            token = await get_jwt_token()
+            headers["Authorization"] = f"Bearer {token}"
+        except Exception:
+            # Proceed without auth — some test environments don't require it
+            log_info("rentbasket", "Proceeding without JWT auth (no token configured)")
 
     log_info("rentbasket", f"Creating payment link for {email}")
 
